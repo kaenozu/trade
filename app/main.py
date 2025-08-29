@@ -1,12 +1,11 @@
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from typing import List, Optional
-import pandas as pd
 
 from .services import data as data_service
 from .services.features import build_feature_frame
-from .services.model import train_or_load_model, predict_future
+from .services.model import predict_future, train_or_load_model
 from .services.signals import generate_trade_plan
 from .services.tickers import list_jp_tickers
 
@@ -26,8 +25,8 @@ class PredictionPoint(BaseModel):
 
 
 class TradePlan(BaseModel):
-    buy_date: Optional[str]
-    sell_date: Optional[str]
+    buy_date: str | None
+    sell_date: str | None
     confidence: float
     rationale: str
 
@@ -36,7 +35,7 @@ class PredictionResponse(BaseModel):
     ticker: str
     horizon_days: int
     trade_plan: TradePlan
-    predictions: List[PredictionPoint]
+    predictions: list[PredictionPoint]
 
 
 class Quote(BaseModel):
@@ -47,19 +46,18 @@ class Quote(BaseModel):
 
 class QuoteItem(BaseModel):
     ticker: str
-    price: Optional[float] = None
-    asof: Optional[str] = None
-    error: Optional[str] = None
+    price: float | None = None
+    asof: str | None = None
+    error: str | None = None
 
 
 class BulkQuotesResponse(BaseModel):
-    quotes: List[QuoteItem]
+    quotes: list[QuoteItem]
 
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return (
-        """
+    return """
         <!doctype html>
         <html>
         <head>
@@ -167,7 +165,6 @@ def index():
         </body>
         </html>
         """
-    )
 
 
 @app.post("/predict", response_model=PredictionResponse)
@@ -175,7 +172,7 @@ def predict(req: PredictionRequest):
     try:
         df = data_service.fetch_ohlcv(req.ticker, period_days=req.lookback_days + 5)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException() from e
 
     if len(df) < 200:
         raise HTTPException(status_code=400, detail="Not enough data to train")
@@ -204,7 +201,7 @@ def predict(req: PredictionRequest):
 
 
 @app.get("/tickers")
-def tickers(q: Optional[str] = None):
+def tickers(q: str | None = None):
     return list_jp_tickers(query=q)
 
 
@@ -222,7 +219,7 @@ def quote(ticker: str):
         try:
             df = data_service.fetch_ohlcv(ticker, period_days=90)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException() from e
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="No data")
         last_idx: pd.Timestamp = df.index.max()  # type: ignore
@@ -242,7 +239,7 @@ def quotes(tickers: str):
             seen.append(t)
         if len(seen) >= 300:
             break
-    out: List[QuoteItem] = []
+    out: list[QuoteItem] = []
     for t in seen:
         try:
             price, asof = data_service.fetch_last_close_direct(t)
@@ -260,3 +257,4 @@ def quotes(tickers: str):
             except Exception as e2:
                 out.append(QuoteItem(ticker=t, error=str(e2)))
     return BulkQuotesResponse(quotes=out)
+

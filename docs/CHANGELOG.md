@@ -40,4 +40,3 @@
 - 起動: `uvicorn app.main:app --host 127.0.0.1 --port 8000`
 - ルート: `http://127.0.0.1:8000/`
 - API: `/quote?ticker=7203.T`, `/quotes?tickers=7203.T,9984.T,6758.T`
-

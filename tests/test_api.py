@@ -3,6 +3,7 @@ from httpx import AsyncClient
 
 from app.main import app
 from app.services import data as data_service
+
 from .utils import make_synthetic_ohlcv
 
 
@@ -14,7 +15,9 @@ async def test_predict_endpoint_monkeypatched(monkeypatch):
 
         monkeypatch.setattr(data_service, "fetch_ohlcv", fake_fetch)
         async with AsyncClient(app=app, base_url="http://test") as ac:
-            resp = await ac.post("/predict", json={"ticker": "TEST.T", "horizon_days": 7, "lookback_days": 400})
+            resp = await ac.post(
+                "/predict", json={"ticker": "TEST.T", "horizon_days": 7, "lookback_days": 400}
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["ticker"] == "TEST.T"
@@ -32,7 +35,9 @@ async def test_quote_endpoint_success(monkeypatch):
         def fake_fetch_direct(ticker: str, timeout: float = 5.0):
             return 1234.5, "2023-10-26"
 
-        def fake_fetch_ohlcv(ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600):
+        def fake_fetch_ohlcv(
+            ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600
+        ):
             # This should not be called in success case, but provide a fallback
             return make_synthetic_ohlcv(10)
 
@@ -57,7 +62,9 @@ async def test_quote_endpoint_invalid_ticker(monkeypatch):
         def fake_fetch_direct(ticker: str, timeout: float = 5.0):
             raise ValueError("Invalid ticker")
 
-        def fake_fetch_ohlcv(ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600):
+        def fake_fetch_ohlcv(
+            ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600
+        ):
             raise ValueError("Invalid ticker")
 
         monkeypatch.setattr(data_service, "fetch_last_close_direct", fake_fetch_direct)
@@ -81,7 +88,9 @@ async def test_quotes_endpoint_success(monkeypatch):
             else:
                 raise ValueError("Invalid ticker")
 
-        def fake_fetch_ohlcv(ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600):
+        def fake_fetch_ohlcv(
+            ticker: str, period_days: int = 400, end=None, ttl_seconds: int = 8 * 3600
+        ):
             # This should not be called in success case, but provide a fallback
             return make_synthetic_ohlcv(10)
 
@@ -116,4 +125,3 @@ async def test_quotes_endpoint_empty_tickers():
             assert resp.status_code == 400
 
     await _run()
-

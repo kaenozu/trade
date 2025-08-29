@@ -1,11 +1,9 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional, Tuple
 import os
-import time
 import re
-import json
+import time
 from urllib.parse import quote
 
 import pandas as pd
@@ -43,28 +41,28 @@ def _validate_ticker(ticker: str) -> None:
         raise ValueError("Invalid ticker")
 
 
-def _make_session() -> "requests.Session":
+def _make_session() -> requests.Session:
     if requests is None:
         raise RuntimeError("requests is not available")
     s = requests.Session()
-    ua = (
-        os.getenv(
-            "YF_UA",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        )
+    ua = os.getenv(
+        "YF_UA",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0 Safari/537.36",
     )
-    s.headers.update({
-        "User-Agent": ua,
-        "Accept": "application/json,text/plain,*/*",
-        "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
-        "Connection": "keep-alive",
-    })
+    s.headers.update(
+        {
+            "User-Agent": ua,
+            "Accept": "application/json,text/plain,*/*",
+            "Accept-Language": "ja,en-US;q=0.9,en;q=0.8",
+            "Connection": "keep-alive",
+        }
+    )
     # requests picks up HTTP(S)_PROXY automatically from env if present
     return s
 
 
-def fetch_last_close_direct(ticker: str, timeout: float = 5.0) -> Tuple[float, str]:
+def fetch_last_close_direct(ticker: str, timeout: float = 5.0) -> tuple[float, str]:
     """Fetch last close via Yahoo chart API directly.
 
     Returns (price, asof_date_str)
@@ -81,7 +79,7 @@ def fetch_last_close_direct(ticker: str, timeout: float = 5.0) -> Tuple[float, s
     if not result:
         raise ValueError("No result from Yahoo chart API")
     res0 = result[0]
-    indicators = (res0.get("indicators") or {})
+    indicators = res0.get("indicators") or {}
     closes = None
     # Prefer adjusted close if present
     adj = indicators.get("adjclose")
@@ -112,7 +110,7 @@ def fetch_last_close_direct(ticker: str, timeout: float = 5.0) -> Tuple[float, s
 def fetch_ohlcv(
     ticker: str,
     period_days: int = 400,
-    end: Optional[dt.date] = None,
+    end: dt.date | None = None,
     ttl_seconds: int = 8 * 3600,
 ) -> pd.DataFrame:
     _validate_ticker(ticker)
@@ -150,7 +148,7 @@ def fetch_ohlcv(
                 session=sess,
             )
         except Exception as e:
-            raise ValueError(f"Failed to fetch data: {e}")
+            raise ValueError() from e
         # Write cache best-effort
         try:
             if df is not None and not df.empty:
@@ -170,3 +168,4 @@ def fetch_ohlcv(
     df.index = pd.to_datetime(df.index)
     df.sort_index(inplace=True)
     return df
+
