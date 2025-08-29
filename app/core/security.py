@@ -257,34 +257,34 @@ def validate_input(**validators):
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         async def wrapper(*args, **kwargs):
-            sanitizer = get_sanitizer()
+            try:
+                sanitizer = get_sanitizer()
 
-            # Apply validators to kwargs
-            for param_name, validator_config in validators.items():
-                if param_name in kwargs:
-                    value = kwargs[param_name]
+                # Apply validators to kwargs
+                for param_name, validator_config in validators.items():
+                    if param_name in kwargs:
+                        value = kwargs[param_name]
 
-                    if validator_config.get('type') == 'ticker':
-                        kwargs[param_name] = sanitizer.validate_ticker(value)
+                        if validator_config.get('type') == 'ticker':
+                            kwargs[param_name] = sanitizer.validate_ticker(value)
 
-                    elif validator_config.get('type') == 'numeric':
-                        kwargs[param_name] = sanitizer.validate_numeric_param(
-                            value,
-                            param_name,
-                            validator_config.get('min'),
-                            validator_config.get('max')
-                        )
+                        elif validator_config.get('type') == 'numeric':
+                            kwargs[param_name] = sanitizer.validate_numeric_param(
+                                value,
+                                param_name,
+                                validator_config.get('min'),
+                                validator_config.get('max')
+                            )
 
-                    elif validator_config.get('type') == 'string':
-                        kwargs[param_name] = sanitizer.sanitize_string(
-                            value,
-                            validator_config.get('max_length', 1000)
-                        )
+                        elif validator_config.get('type') == 'string':
+                            kwargs[param_name] = sanitizer.sanitize_string(
+                                value,
+                                validator_config.get('max_length', 1000)
+                            )
 
-                try:
-                    return await func(*args, **kwargs)
-                except ValueError as e:
-                    raise HTTPException(status_code=400, detail=str(e)) from e
+                return await func(*args, **kwargs)
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=str(e)) from e
         return wrapper
     return decorator
 
