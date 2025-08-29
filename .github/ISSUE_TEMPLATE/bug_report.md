@@ -18,4 +18,3 @@ Steps to reproduce the behavior:
 - OS:
 - Python:
 - App version / commit:
-

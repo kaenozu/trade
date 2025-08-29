@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import math
-from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -29,7 +28,7 @@ def _best_interval_max_product(returns: pd.Series):
     return best_i, best_j, float(best_gain)
 
 
-def generate_trade_plan(pred_df: pd.DataFrame) -> Dict:
+def generate_trade_plan(pred_df: pd.DataFrame) -> dict:
     if pred_df.empty:
         return {
             "buy_date": None,
@@ -54,7 +53,7 @@ def generate_trade_plan(pred_df: pd.DataFrame) -> Dict:
     # Confidence heuristic: map average absolute return and interval length
     avg_abs = float(r.abs().mean())
     length = int(j - i + 1)
-    conf = 1.0 / (1.0 + math.exp(- (avg_abs * 10 + 0.1 * length)))
+    conf = 1.0 / (1.0 + math.exp(-(avg_abs * 10 + 0.1 * length)))
     conf = max(0.0, min(1.0, conf))
 
     return {
@@ -63,4 +62,3 @@ def generate_trade_plan(pred_df: pd.DataFrame) -> Dict:
         "confidence": conf,
         "rationale": f"Expected cumulative return {(total_ret*100):.2f}% over {length} days",
     }
-

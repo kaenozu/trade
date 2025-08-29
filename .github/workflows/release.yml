@@ -50,4 +50,3 @@ jobs:
           tag_name: ${{ steps.v.outputs.version }}
           name: Release ${{ steps.v.outputs.version }}
           generate_release_notes: true
-

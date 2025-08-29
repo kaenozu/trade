@@ -12,6 +12,9 @@ env/
 uvicorn.out.log
 uvicorn.err.log
 
+# Runtime caches
+cache/
+models/*.joblib
+
 # Models / caches (if any)
 models/*.tmp
-

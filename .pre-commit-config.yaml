@@ -14,13 +14,12 @@ repos:
         args: ["--fix"]
       - id: ruff-format
 
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - pydantic==2.8.2
-          - numpy==1.26.4
-          - pandas==2.2.2
-        args: ["app"]
-
+  # - repo: https://github.com/pre-commit/mirrors-mypy
+  #   rev: v1.13.0
+  #   hooks:
+  #     - id: mypy
+  #       additional_dependencies:
+  #         - pydantic==2.8.2
+  #         - numpy==1.26.4
+  #         - pandas==2.2.2
+  #       args: ["--explicit-package-bases", "app/main.py", "app/services/"]

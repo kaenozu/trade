@@ -21,16 +21,13 @@ jobs:
       matrix:
         os: [ubuntu-latest, windows-latest]
         python-version: ["3.11", "3.12"]
-
     steps:
       - name: Check out
         uses: actions/checkout@v5
-
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
-
       - name: Cache pip
         uses: actions/cache@v4
         with:
@@ -40,16 +37,12 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-pip-
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-
       - name: Run tests with coverage
-        run: |
-          pytest -q --cov=app --cov-report=xml
-
+        run: pytest -q --cov=app --cov-report=xml
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
@@ -97,6 +90,17 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pip-audit
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pip-audit==2.7.3
+      - name: Audit dependencies
+        run: pip-audit -r requirements.txt --strict || true
 
   precommit:
     name: pre-commit
@@ -129,17 +133,35 @@ jobs:
           python -m pip install bandit==1.7.9
       - name: Run bandit
         run: bandit -r app -q -ll || true
+
+  smoke:
+    name: api smoke (ubuntu)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Install pip-audit
+      - name: Install deps
         run: |
           python -m pip install --upgrade pip
-          python -m pip install pip-audit==2.7.3
-      - name: Audit dependencies
-        run: pip-audit -r requirements.txt --strict || true
+          python -m pip install -r requirements.txt
+      - name: Start uvicorn
+        env:
+          METRICS_ENABLED: "0"
+        run: |
+          python -m uvicorn app.main:app --port 8765 --host 127.0.0.1 &
+          echo $! > uv.pid
+          sleep 2
+      - name: Probe endpoints
+        run: |
+          curl -sS http://127.0.0.1:8765/healthz | tee /dev/stderr | grep -q '"ok"'
+          curl -sS http://127.0.0.1:8765/version | tee /dev/stderr | grep -q '"version"'
+      - name: Stop uvicorn
+        if: always()
+        run: |
+          kill $(cat uv.pid) || true
 
   docker:
     name: docker build & push
