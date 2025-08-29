@@ -1,0 +1,42 @@
+ticker,name,sector
+7203.T,Toyota Motor,Automobiles
+6758.T,Sony Group,Consumer Electronics
+9984.T,SoftBank Group,Telecom/Investment
+9432.T,NTT,Telecom
+9983.T,Fast Retailing,Apparel Retail
+6902.T,Denso,Auto Parts
+6861.T,Keyence,Industrial Automation
+8306.T,MUFG,Financials
+8316.T,Sumitomo Mitsui,Financials
+8411.T,Mizuho,Financials
+7974.T,Nintendo,Entertainment
+6594.T,Nidec,Electrical Equipment
+7011.T,Mitsubishi Heavy,Industrials
+8035.T,Tokyo Electron,Semiconductors
+7751.T,Canon,Imaging
+4502.T,Takeda Pharma,Pharmaceuticals
+8058.T,Mitsubishi Corp,Trading Company
+8031.T,Mitsui & Co.,Trading Company
+9101.T,NYK Line,Marine Transport
+9104.T,Mitsui O.S.K. Lines,Marine Transport
+9107.T,Kawasaki Kisen,Marine Transport
+9433.T,KDDI,Telecom
+9434.T,SoftBank Corp,Telecom
+5108.T,Bridgestone,Tires
+4503.T,Astellas Pharma,Pharmaceuticals
+6752.T,Panasonic,Consumer Electronics
+6301.T,Komatsu,Construction Machinery
+6501.T,Hitachi,Electrical Equipment
+6857.T,Advantest,Semiconductor Equipment
+6920.T,Lasertec,Semiconductor Equipment
+6503.T,Mitsubishi Electric,Electrical Equipment
+6273.T,SMC,Pneumatics
+7201.T,Nissan,Automobiles
+7267.T,Honda,Automobiles
+7261.T,Mazda,Automobiles
+7270.T,Subaru,Automobiles
+4507.T,Shionogi,Pharmaceuticals
+3402.T,Toray,Materials
+3382.T,Seven & i,Food Retail
+2914.T,Japan Tobacco,Tobacco
+8267.T,AEON,Retail
