@@ -22,3 +22,4 @@ ignore = [
 quote-style = "preserve"
 indent-style = "space"
 skip-magic-trailing-comma = false
+
