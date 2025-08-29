@@ -279,7 +279,10 @@ def validate_input(**validators):
                             validator_config.get('max_length', 1000)
                         )
 
+                try:
             return await func(*args, **kwargs)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
         return wrapper
     return decorator
 
