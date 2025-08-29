@@ -4,10 +4,12 @@ import logging
 
 import pandas as pd
 from fastapi import APIRouter, Depends, HTTPException, Request
+from starlette.concurrency import run_in_threadpool
 
 from ..core.security import rate_limit, validate_input
 from ..core.services import ServiceContainer, get_container
 from ..models.api_models import PredictionPoint, PredictionRequest, PredictionResponse, TradePlan
+from ..services import data as data_sync_service
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -29,11 +31,24 @@ async def predict_stock(
     signal_service = container.get_signal_service()
 
     try:
-        # Fetch market data asynchronously for better performance
-        df = await data_service.fetch_ohlcv_async(
-            request.ticker,
-            period_days=request.lookback_days + 5
-        )
+        df = None
+        # Prefer async path if available
+        if hasattr(data_service, "fetch_ohlcv_async"):
+            try:
+                df = await data_service.fetch_ohlcv_async(
+                    request.ticker,
+                    period_days=request.lookback_days + 5,
+                )
+            except Exception as e:
+                logger.debug("async fetch failed for %s: %s (will fallback)", request.ticker, e)
+
+        # Fallback to legacy module function (enables test monkeypatching)
+        if df is None or getattr(df, "empty", False):
+            df = await run_in_threadpool(
+                data_sync_service.fetch_ohlcv,
+                request.ticker,
+                request.lookback_days + 5,
+            )
     except Exception as e:
         logger.warning("Data fetch failed for %s: %s", request.ticker, e)
         raise HTTPException(status_code=400, detail=str(e)) from e
