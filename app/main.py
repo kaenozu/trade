@@ -3,20 +3,6 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
-import os
-
-# Optional observability (non-fatal if missing)
-try:
-    from prometheus_fastapi_instrumentator import Instrumentator  # type: ignore
-except Exception:  # pragma: no cover
-    Instrumentator = None  # type: ignore
-
-try:
-    import sentry_sdk  # type: ignore
-    from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore
-except Exception:  # pragma: no cover
-    sentry_sdk = None  # type: ignore
-    FastApiIntegration = None  # type: ignore
 
 from .services import data as data_service
 from .services.features import build_feature_frame
@@ -25,40 +11,6 @@ from .services.signals import generate_trade_plan
 from .services.tickers import list_jp_tickers
 
 app = FastAPI(title="JP Stocks ML Forecaster", version="0.1.0")
-
-# Sentry (enabled when SENTRY_DSN is provided)
-_sentry_dsn = os.environ.get("SENTRY_DSN")
-if _sentry_dsn and sentry_sdk and FastApiIntegration:  # pragma: no cover
-    sentry_sdk.init(
-        dsn=_sentry_dsn,
-        integrations=[FastApiIntegration()],
-        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0")),
-        profiles_sample_rate=float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.0")),
-        environment=os.environ.get("SENTRY_ENV", "production"),
-    )
-
-# Prometheus metrics (enabled by default; disable via METRICS_ENABLED=0)
-if os.environ.get("METRICS_ENABLED", "1") not in ("0", "false", "False") and Instrumentator:  # pragma: no cover
-    try:
-        Instrumentator().instrument(app).expose(app, include_in_schema=False)
-    except Exception:
-        pass
-
-# CORS (for local dev or specified origins)
-try:
-    from fastapi.middleware.cors import CORSMiddleware  # type: ignore
-
-    origins_env = os.environ.get("CORS_ORIGINS", "*")
-    origins = [o.strip() for o in origins_env.split(",") if o.strip()]
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=origins,
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
-except Exception:
-    pass
 
 
 class PredictionRequest(BaseModel):
@@ -91,6 +43,17 @@ class Quote(BaseModel):
     ticker: str
     price: float
     asof: str
+
+
+class QuoteItem(BaseModel):
+    ticker: str
+    price: Optional[float] = None
+    asof: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BulkQuotesResponse(BaseModel):
+    quotes: List[QuoteItem]
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -135,32 +98,35 @@ def index():
                const data=await res.json();
                let html='<table><thead><tr><th>コード</th><th>名称</th><th>セクター</th><th>現在値</th><th></th></tr></thead><tbody>';
                for(const r of data){
-                 html+=`<tr><td>${r.ticker}</td><td>${r.name}</td><td>${r.sector}</td><td><button onclick="run('${r.ticker}','${r.name.replace(/'/g, "\'")}')">予測</button></td></tr>`
+                 html+=`<tr><td>${r.ticker}</td><td>${r.name}</td><td>${r.sector}</td><td><button onclick="run('${r.ticker}','${r.name.replace(/'/g, "\\\\'")}')">予測</button></td></tr>`
                }
                html+='</tbody></table>';
                document.getElementById('list').innerHTML=html;
                // 価格列を挿入しつつ非同期で取得
                const rows = Array.from(document.querySelectorAll('#list tbody tr'));
                const pairs = rows.map((tr,i)=>{ const cell=tr.insertCell(3); cell.textContent='…'; return {ticker: data[i].ticker, el: cell}; });
-               const concurrency=8; let k=0;
-               async function worker(){
-                 while(k < pairs.length){
-                   const it = pairs[k++];
-                   try{
-                     const res = await fetch('/quote?ticker='+encodeURIComponent(it.ticker));
-                     if(!res.ok) throw new Error(String(res.status));
-                     const q = await res.json();
-                     it.el.textContent = Number(q.price).toFixed(2);
-                   }catch(_){
-                     it.el.textContent = '—';
+               // 一括取得で現在値を埋める
+               try{
+                 const tickers = data.map(r=>r.ticker).join(',');
+                 const res2 = await fetch('/quotes?tickers='+encodeURIComponent(tickers));
+                 if(res2.ok){
+                   const payload = await res2.json();
+                   const map = new Map(payload.quotes.map(q=>[q.ticker, q]));
+                   for(const it of pairs){
+                     const q = map.get(it.ticker);
+                     if(q && q.price!=null) it.el.textContent = Number(q.price).toFixed(2);
+                     else it.el.textContent = '—';
                    }
+                 } else {
+                   for(const it of pairs){ it.el.textContent = '—'; }
                  }
+               }catch(_){
+                 for(const it of pairs){ it.el.textContent = '—'; }
                }
-               await Promise.all(Array(concurrency).fill(0).map(()=>worker()));
             }
             async function run(ticker,name){
-               const horizon=parseInt(document.getElementById('horizon').value,10);
-               const lookback=parseInt(document.getElementById('lookback').value,10);
+               const horizon=parseInt(document.getElementById('horizon').value)||10;
+               const lookback=parseInt(document.getElementById('lookback').value)||400;
                document.getElementById('selTitle').textContent=`選択銘柄: ${ticker} ${name||''}`
                document.getElementById('plan').textContent='Running...';
                const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker,horizon_days:horizon,lookback_days:lookback})});
@@ -184,7 +150,10 @@ def index():
                }
                const data=await res.json();
                const tp=data.trade_plan;
-               document.getElementById('plan').textContent=`買: ${tp.buy_date || '-'}\n売: ${tp.sell_date || '-'}\n確信度: ${tp.confidence.toFixed(2)}\n理由: ${tp.rationale}`
+               document.getElementById('plan').textContent=`買: ${tp.buy_date || '-'}
+売: ${tp.sell_date || '-'}
+確信度: ${tp.confidence.toFixed(2)}
+理由: ${tp.rationale}`
                let html='<table><thead><tr><th>日付</th><th>期待リターン</th><th>予測価格</th></tr></thead><tbody>';
                for(const p of data.predictions){
                  html += `<tr><td>${p.date}</td><td>${(p.expected_return*100).toFixed(2)}%</td><td>${p.expected_price.toFixed(2)}</td></tr>`
@@ -234,9 +203,6 @@ def predict(req: PredictionRequest):
     )
 
 
-@app.get("/healthz")
-def healthz():
-    return {"status": "ok"}
 @app.get("/tickers")
 def tickers(q: Optional[str] = None):
     return list_jp_tickers(query=q)
@@ -259,6 +225,38 @@ def quote(ticker: str):
             raise HTTPException(status_code=400, detail=str(e))
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="No data")
-        last_idx = df.index.max()
-        last_close = float(df.loc[last_idx, "Close"])
-        return Quote(ticker=ticker, price=last_close, asof=str(pd.to_datetime(last_idx).date()))
+        last_idx: pd.Timestamp = df.index.max()  # type: ignore
+        last_close = float(df.loc[last_idx, "Close"])  # type: ignore
+        return Quote(ticker=ticker, price=last_close, asof=str(last_idx.date()))  # type: ignore
+
+
+@app.get("/quotes", response_model=BulkQuotesResponse)
+def quotes(tickers: str):
+    if not tickers:
+        raise HTTPException(status_code=400, detail="tickers is required")
+    raw = [t.strip() for t in tickers.split(",") if t.strip()]
+    # de-dup and cap to 300
+    seen = []
+    for t in raw:
+        if t not in seen:
+            seen.append(t)
+        if len(seen) >= 300:
+            break
+    out: List[QuoteItem] = []
+    for t in seen:
+        try:
+            price, asof = data_service.fetch_last_close_direct(t)
+            out.append(QuoteItem(ticker=t, price=price, asof=asof))
+        except Exception as e:
+            # Fallback to OHLCV
+            try:
+                df = data_service.fetch_ohlcv(t, period_days=60)
+                if len(df) > 0:
+                    last_idx: pd.Timestamp = df.index.max()  # type: ignore
+                    last_close = float(df.loc[last_idx, "Close"])  # type: ignore
+                    out.append(QuoteItem(ticker=t, price=last_close, asof=str(last_idx.date())))
+                else:
+                    out.append(QuoteItem(ticker=t, error=str(e)))
+            except Exception as e2:
+                out.append(QuoteItem(ticker=t, error=str(e2)))
+    return BulkQuotesResponse(quotes=out)
