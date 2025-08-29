@@ -1,5 +1,8 @@
 # JP Stocks ML Forecaster
 
+[![CI](https://github.com/kaenozu/trade/actions/workflows/ci.yml/badge.svg)](https://github.com/kaenozu/trade/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/kaenozu/trade/branch/main/graph/badge.svg)](https://codecov.io/gh/kaenozu/trade)
+
 日本株の終値データから機械学習で短期リターンを予測し、予測区間内での「買い・売り」タイミングを提示する FastAPI アプリです。
 
 ## セットアップ
