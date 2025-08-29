@@ -56,7 +56,7 @@ def _validate_ticker(ticker: str) -> str:
 
 def _model_path(ticker: str) -> str:
     _validate_ticker(ticker)
-    base = ticker.replace("/", "_").replace(\"\\", "_")
+    base = ticker.replace("/", "_").replace("\\", "_")
     path = os.path.join(MODEL_DIR, f"{base}.joblib")
     real = os.path.realpath(path)
     root = os.path.realpath(MODEL_DIR)
