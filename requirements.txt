@@ -11,7 +11,7 @@ pytest==8.4.1
 pytest-asyncio==1.1.0
 python-multipart==0.0.9
 pytest-cov==5.0.0
-prometheus-fastapi-instrumentator==7.0.0
+prometheus-fastapi-instrumentator==7.1.0
 sentry-sdk==2.19.2
 pydantic-settings>=2.3.0
 aiofiles==24.1.0
