@@ -191,6 +191,9 @@ def tickers(q: Optional[str] = None):
 
 @app.get("/quote", response_model=Quote)
 def quote(ticker: str):
+    # Basic input sanitation (also validated in data layer)
+    if not ticker or len(ticker) > 15:
+        raise HTTPException(status_code=400, detail="Invalid ticker")
     # Prefer direct lightweight quote for robustness
     try:
         price, asof = data_service.fetch_last_close_direct(ticker)

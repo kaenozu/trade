@@ -8,6 +8,7 @@ import time
 import pandas as pd
 import requests
 import json
+import re
 
 try:
     import yfinance as yf
@@ -43,7 +44,19 @@ def _make_session() -> requests.Session:
     return s
 
 
+_TICKER_RE = re.compile(r"^[A-Za-z0-9._-]{1,15}$")
+
+
+def _validate_ticker(ticker: str) -> str:
+    if not ticker or len(ticker) < 1:
+        raise ValueError("Invalid ticker")
+    if not _TICKER_RE.match(ticker):
+        raise ValueError("Invalid ticker format")
+    return ticker
+
+
 def fetch_last_close_direct(ticker: str) -> tuple[float, str]:
+    ticker = _validate_ticker(ticker)
     s = _make_session()
     bases = [
         f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}",
@@ -58,7 +71,7 @@ def fetch_last_close_direct(ticker: str) -> tuple[float, str]:
     for base in bases:
         for params in params_list:
             try:
-                r = s.get(base, params=params, timeout=10)
+                r = s.get(base, params=params, timeout=10, allow_redirects=False)
                 if r.status_code != 200:
                     last_err = f"HTTP {r.status_code}"
                     continue
@@ -88,8 +101,7 @@ def fetch_last_close_direct(ticker: str) -> tuple[float, str]:
 
 
 def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = None, ttl_seconds: int = 8*3600) -> pd.DataFrame:
-    if not ticker or len(ticker) < 2:
-        raise ValueError("Invalid ticker")
+    ticker = _validate_ticker(ticker)
     if period_days < 60:
         raise ValueError("period_days must be >= 60")
 
