@@ -144,7 +144,7 @@ def log_performance(operation_name: str | None = None):
             logger = get_performance_logger(func.__module__)
             op_name = operation_name or f"{func.__name__}"
 
-            with logger.time_operation(op_name, function=func.__name__, module=func.__module__):
+            with logger.time_operation(op_name, function=func.__name__, func_module=func.__module__):
                 return func(*args, **kwargs)
         return wrapper
     return decorator
@@ -158,7 +158,7 @@ def log_async_performance(operation_name: str | None = None):
             logger = get_performance_logger(func.__module__)
             op_name = operation_name or f"{func.__name__}"
 
-            with logger.time_operation(op_name, function=func.__name__, module=func.__module__):
+            with logger.time_operation(op_name, function=func.__name__, func_module=func.__module__):
                 return await func(*args, **kwargs)
         return wrapper
     return decorator
