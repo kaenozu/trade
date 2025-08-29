@@ -44,6 +44,22 @@ if os.environ.get("METRICS_ENABLED", "1") not in ("0", "false", "False") and Ins
     except Exception:
         pass
 
+# CORS (for local dev or specified origins)
+try:
+    from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+
+    origins_env = os.environ.get("CORS_ORIGINS", "*")
+    origins = [o.strip() for o in origins_env.split(",") if o.strip()]
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+except Exception:
+    pass
+
 
 class PredictionRequest(BaseModel):
     ticker: str

@@ -37,6 +37,7 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 - メトリクス: `/metrics` にPrometheusメトリクスを公開（デフォルト有効）。無効化は `METRICS_ENABLED=0`。
 - エラートラッキング: Sentryを有効化する場合は `SENTRY_DSN` を環境変数で設定。
   - 例: `SENTRY_TRACES_SAMPLE_RATE=0.1`（APM任意）、`SENTRY_PROFILES_SAMPLE_RATE=0.1`、`SENTRY_ENV=prod`。
+ - CORS: `CORS_ORIGINS`（カンマ区切り）で許可オリジンを設定。デフォルトは `*`。
 
 環境変数の例は `.env.example` を参照してください。
 
