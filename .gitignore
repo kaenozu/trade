@@ -18,3 +18,11 @@ models/*.joblib
 
 # Models / caches (if any)
 models/*.tmp
+
+# Additional ignores
+uvicorn.*.log
+tmp_openapi_*.json
+logs/
+dist/
+build/
+*.egg-info/
