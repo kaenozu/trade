@@ -16,6 +16,6 @@ sentry-sdk==2.19.2
 pydantic-settings>=2.3.0
 aiofiles==24.1.0
 pyarrow==14.0.1
-psutil==5.9.6
+psutil==7.0.0
 
 
