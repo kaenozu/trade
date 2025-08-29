@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.venv/
+venv/
+env/
+.DS_Store
+
+# Logs
+*.log
+uvicorn.out.log
+uvicorn.err.log
+
+# Models / caches (if any)
+models/*.tmp
+
