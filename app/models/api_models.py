@@ -1,6 +1,6 @@
 """API request and response models."""
 
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, Field
 
 
@@ -26,12 +26,37 @@ class TradePlan(BaseModel):
     rationale: str = Field(..., description="Explanation of the trading plan")
 
 
+class ModelMetaInfo(BaseModel):
+    """Model metadata (exposed via API)."""
+    features: List[str] = Field(..., description="Feature column names used by the model")
+    r2_mean: float = Field(..., description="Cross-validated R2 score mean")
+    train_rows: int = Field(..., description="Number of training rows")
+    period_start: str | None = Field(
+        None, description="Training data period start (YYYY-MM-DD)"
+    )
+    period_end: str | None = Field(
+        None, description="Training data period end (YYYY-MM-DD)"
+    )
+
+
+class DataSourceInfo(BaseModel):
+    """Data source metadata (exposed via API)."""
+    provider: str = Field(..., description="Data provider identifier (e.g., yfinance/cache/synthetic)")
+    mode: str = Field(..., description="Acquisition mode (async/sync)")
+    rows: int = Field(..., ge=0, description="Number of OHLCV rows used")
+
+
 class PredictionResponse(BaseModel):
-    """Complete prediction response."""
+    """Complete prediction response (extended)."""
+    # Allow field name "model_meta" without protected namespace warning
+    model_config = {"protected_namespaces": ()}
+
     ticker: str = Field(..., description="Stock ticker symbol")
     horizon_days: int = Field(..., description="Prediction horizon in days")
     trade_plan: TradePlan = Field(..., description="Trading recommendation")
     predictions: list[PredictionPoint] = Field(..., description="Individual predictions")
+    model_meta: ModelMetaInfo | None = Field(None, description="Model metadata for transparency")
+    data_source: DataSourceInfo | None = Field(None, description="Data source information")
 
 
 class Quote(BaseModel):

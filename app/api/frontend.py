@@ -30,6 +30,7 @@ def serve_index() -> str:
   <div id='list'></div>
   <hr/>
   <h3 id='selTitle'>選択銘柄: -</h3>
+  <div id='meta' style='font-size:14px;color:#444;margin:8px 0'></div>
   <pre id='plan'></pre>
   <div id='preds'></div>
   <script>
@@ -78,6 +79,7 @@ def serve_index() -> str:
        const horizon=10; // default
        const lookback=400; // default
        document.getElementById('selTitle').textContent=`選択銘柄: ${ticker} ${name||''}`
+       document.getElementById('meta').textContent='';
        document.getElementById('plan').textContent='Running...';
        const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker,horizon_days:horizon,lookback_days:lookback})});
        if(!res.ok){
@@ -95,6 +97,19 @@ def serve_index() -> str:
          return;
        }
        const payload = await res.json();
+       // Show basic metadata (Issue #29)
+       try{
+         const ds = payload.data_source || {};
+         const mm = payload.model_meta || {};
+         const prov = ds.provider ? `${ds.provider}` : 'unknown';
+         const mode = ds.mode ? ` (${ds.mode})` : '';
+         const rows = (ds.rows!=null) ? `, rows=${ds.rows}` : '';
+         const r2 = (mm.r2_mean!=null) ? `R2=${Number(mm.r2_mean).toFixed(3)}` : '';
+         const tr = (mm.train_rows!=null) ? `, train_rows=${mm.train_rows}` : '';
+         const period = (mm.period_start||mm.period_end) ? `, 期間=${mm.period_start||'?'} → ${mm.period_end||'?'}` : '';
+         const metaLine = `Data: ${prov}${mode}${rows}  |  Model: ${r2}${tr}${period}`;
+         document.getElementById('meta').textContent = metaLine;
+       }catch(_){ document.getElementById('meta').textContent=''; }
        const plan = payload.trade_plan;
        let planText = `Buy: ${plan.buy_date||'N/A'}, Sell: ${plan.sell_date||'N/A'}\\nConfidence: ${(plan.confidence*100).toFixed(1)}%\\n${plan.rationale}`;
        document.getElementById('plan').textContent = planText;

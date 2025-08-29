@@ -32,6 +32,7 @@ async def predict_stock(
 
     try:
         df = None
+        fetch_mode = "sync"
         # Prefer async path if available
         if hasattr(data_service, "fetch_ohlcv_async"):
             try:
@@ -39,6 +40,8 @@ async def predict_stock(
                     request.ticker,
                     period_days=request.lookback_days + 5,
                 )
+                if df is not None and not getattr(df, "empty", False):
+                    fetch_mode = "async"
             except Exception as e:
                 logger.debug("async fetch failed for %s: %s (will fallback)", request.ticker, e)
 
@@ -49,6 +52,7 @@ async def predict_stock(
                 request.ticker,
                 request.lookback_days + 5,
             )
+            fetch_mode = "sync"
     except Exception as e:
         logger.warning("Data fetch failed for %s: %s", request.ticker, e)
         raise HTTPException(status_code=400, detail=str(e)) from e
@@ -99,12 +103,65 @@ async def predict_stock(
             rationale=trade_plan_data["rationale"]
         )
 
+        # Prepare metadata for response
+        try:
+            period_start = str(pd.to_datetime(df.index.min()).date())
+            period_end = str(pd.to_datetime(df.index.max()).date())
+        except Exception:
+            period_start = None
+            period_end = None
+
+        # Normalize meta to dict-like
+        features_list = []
+        train_rows = 0
+        r2_mean = 0.0
+        if hasattr(meta, "features"):
+            try:
+                features_list = list(getattr(meta, "features"))
+            except Exception:
+                features_list = []
+        if hasattr(meta, "train_rows"):
+            try:
+                train_rows = int(getattr(meta, "train_rows"))
+            except Exception:
+                train_rows = 0
+        if hasattr(meta, "r2_mean"):
+            try:
+                r2_mean = float(getattr(meta, "r2_mean"))
+            except Exception:
+                r2_mean = 0.0
+        if isinstance(meta, dict):
+            features_list = meta.get("features", features_list) or features_list
+            r2_mean = float(meta.get("r2_mean", r2_mean) or r2_mean)
+            train_rows = int(meta.get("train_rows", train_rows) or train_rows)
+
+        model_meta = {
+            "features": features_list,
+            "r2_mean": r2_mean,
+            "train_rows": train_rows,
+            "period_start": period_start,
+            "period_end": period_end,
+        }
+
+        provider = None
+        try:
+            provider = getattr(df, "attrs", {}).get("data_source")  # type: ignore[attr-defined]
+        except Exception:
+            provider = None
+        data_source = {
+            "provider": provider or "unknown",
+            "mode": fetch_mode,
+            "rows": int(len(df)),
+        }
+
         logger.info("Successfully generated %d predictions for %s", len(predictions), request.ticker)
         return PredictionResponse(
             ticker=request.ticker,
             horizon_days=request.horizon_days,
             trade_plan=trade_plan,
-            predictions=predictions
+            predictions=predictions,
+            model_meta=model_meta,
+            data_source=data_source,
         )
 
     except Exception as e:
