@@ -113,7 +113,7 @@ def fetch_last_close_direct(ticker: str) -> tuple[float, str]:
 def fetch_ohlcv(
     ticker: str, period_days: int = 400, end: dt.date | None = None, ttl_seconds: int = 8 * 3600
 ) -> pd.DataFrame:
-    ticker = _validate_ticker(ticker)
+        ticker = _validate_ticker(ticker)
     if period_days < 60:
         raise ValueError("period_days must be >= 60")
 
@@ -125,12 +125,12 @@ def fetch_ohlcv(
     cache_file = _cache_path(ticker, period_days)
     now = time.time()
     if os.path.exists(cache_file) and (now - os.path.getmtime(cache_file) <= ttl_seconds):
-        ticker = _validate_ticker(ticker)
-    try:
+        try:
             df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
         except Exception:
             df = pd.DataFrame()
     else:
+        df = pd.DataFrame()
         df = pd.DataFrame()
 
     def _attempt_fetch() -> pd.DataFrame:

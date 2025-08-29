@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
+import re
 
 import joblib
 import numpy as np
@@ -47,7 +48,7 @@ def _evaluate_cv(
 _TICKER_RE = re.compile(r"^[-A-Za-z0-9._]{1,15}$")
 
 
-ndef _validate_ticker(ticker: str) -> str:
+def _validate_ticker(ticker: str) -> str:
     if not ticker or not _TICKER_RE.match(ticker):
         raise ModelError("Invalid ticker format")
     return ticker
