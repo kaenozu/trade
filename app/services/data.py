@@ -16,7 +16,8 @@ except Exception:  # pragma: no cover - optional dependency in tests
     yf = None
 
 
-CACHE_DIR = os.path.join(os.getcwd(), "cache")
+# Allow overriding cache directory via env; default to CWD/cache
+CACHE_DIR = os.getenv("CACHE_DIR") or os.path.join(os.getcwd(), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 ALLOW_SYNTHETIC = os.getenv("ALLOW_SYNTHETIC_DATA", "0") == "1"
 

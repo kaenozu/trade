@@ -237,6 +237,15 @@ def predict(req: PredictionRequest):
 @app.get("/healthz")
 def healthz():
     return {"status": "ok"}
+
+
+@app.get("/version")
+def version():
+    return {
+        "app": app.title,
+        "version": app.version,
+        "git_sha": os.environ.get("GIT_SHA"),
+    }
 @app.get("/tickers")
 def tickers(q: Optional[str] = None):
     return list_jp_tickers(query=q)

@@ -31,6 +31,7 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 ブラウザで `http://127.0.0.1:8000/` を開き、銘柄（例: `7203.T`）を入力して実行します。
 
 ヘルスチェック: `GET /healthz` は `{ "status": "ok" }` を返します。
+バージョン: `GET /version` はアプリ名・バージョン・`GIT_SHA` を返します。
 
 ## 運用/監視（オプション）
 
@@ -40,6 +41,11 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 - CORS: `CORS_ORIGINS`（カンマ区切り）で許可オリジンを設定。デフォルトは `*`。
 
 環境変数の例は `.env.example` を参照してください。
+
+### キャッシュ設定
+
+- `CACHE_DIR`: OHLCV取得のCSVキャッシュ格納先（既定: 作業ディレクトリ配下の`cache/`）
+- `ALLOW_SYNTHETIC_DATA=1`: ネットワーク不可や取得失敗時にデモ用の合成データを生成（既定: 0=無効）
 
 ## リリース
 
