@@ -214,14 +214,14 @@ def quote(ticker: str):
     try:
         price, asof = data_service.fetch_last_close_direct(ticker)
         return Quote(ticker=ticker, price=price, asof=asof)
-    except Exception:
+    except Exception as err:
         # Fallback to OHLCV fetch
         try:
             df = data_service.fetch_ohlcv(ticker, period_days=90)
         except ValueError as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
         if len(df) == 0:
-            raise HTTPException(status_code=400, detail="No data")
+            raise HTTPException(status_code=400, detail="No data") from err
         last_idx: pd.Timestamp = df.index.max()  # type: ignore
         last_close = float(df.loc[last_idx, "Close"])  # type: ignore
         return Quote(ticker=ticker, price=last_close, asof=str(last_idx.date()))  # type: ignore

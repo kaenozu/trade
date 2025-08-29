@@ -62,7 +62,7 @@ jobs:
     runs-on: ubuntu-latest
     continue-on-error: true
     timeout-minutes: 10
-  pip_audit:
+  pip-audit:
     name: security (pip-audit)
     runs-on: ubuntu-latest
     continue-on-error: true
@@ -134,7 +134,7 @@ jobs:
       - name: Run bandit
         run: bandit -r app -q -ll || true
 
-  pip_audit:
+  pip-audit:
     name: security (pip-audit)
     runs-on: ubuntu-latest
     continue-on-error: true
