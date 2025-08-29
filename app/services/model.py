@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import json
 from dataclasses import dataclass
+import re
 from typing import Dict, Tuple
 
 import joblib
@@ -42,9 +43,24 @@ def _evaluate_cv(model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Se
     return float(np.nanmean(scores))
 
 
+_TICKER_RE = re.compile(r"^[A-Za-z0-9._-]{1,15}$")
+
+
+def _validate_ticker(ticker: str) -> str:
+    if not ticker or not _TICKER_RE.match(ticker):
+        raise ValueError("Invalid ticker")
+    return ticker
+
+
 def _model_path(ticker: str) -> str:
+    _validate_ticker(ticker)
     base = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(MODEL_DIR, f"{base}.joblib")
+    path = os.path.join(MODEL_DIR, f"{base}.joblib")
+    real = os.path.realpath(path)
+    root = os.path.realpath(MODEL_DIR)
+    if not real.startswith(root + os.sep):
+        raise ValueError("Unsafe model path")
+    return real
 
 
 def train_or_load_model(ticker: str, feat: pd.DataFrame):
