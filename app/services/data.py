@@ -128,6 +128,11 @@ def fetch_ohlcv(
         ticker = _validate_ticker(ticker)
         try:
             df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
+            # Mark as coming from cache (which itself is sourced from yfinance)
+            try:
+                df.attrs["data_source"] = "cache"
+            except Exception:
+                pass
         except Exception:
             df = pd.DataFrame()
     else:
@@ -148,6 +153,10 @@ def fetch_ohlcv(
                     session=session,
                 )
                 if d1 is not None and not d1.empty:
+                    try:
+                        d1.attrs["data_source"] = "yfinance"
+                    except Exception:
+                        pass
                     return d1
             except Exception:
                 pass
@@ -157,6 +166,10 @@ def fetch_ohlcv(
                 period=period, interval="1d", auto_adjust=False
             )
             if d2 is not None and not d2.empty:
+                try:
+                    d2.attrs["data_source"] = "yfinance"
+                except Exception:
+                    pass
                 return d2
         except Exception:
             pass
@@ -174,6 +187,10 @@ def fetch_ohlcv(
                 session=session,
             )
             if d3 is not None and not d3.empty:
+                try:
+                    d3.attrs["data_source"] = "yfinance"
+                except Exception:
+                    pass
                 return d3
         except Exception:
             pass
@@ -215,6 +232,10 @@ def fetch_ohlcv(
                     return out
 
                 df = _synthetic_ohlcv(max(250, period_days))
+                try:
+                    df.attrs["data_source"] = "synthetic"
+                except Exception:
+                    pass
                 # Do not cache synthetic to avoid confusion
         # Write cache best-effort
         try:
@@ -225,6 +246,8 @@ def fetch_ohlcv(
     if df is None or df.empty:
         raise ValueError("No data returned for ticker")
 
+    # Capture provider attr then normalize columns/index once
+    provider = df.attrs.get("data_source", None)
     df = df.rename(columns={c: c.capitalize() for c in df.columns})
     needed = ["Open", "High", "Low", "Close", "Volume"]
     for c in needed:
@@ -240,4 +263,10 @@ def fetch_ohlcv(
     df = df[needed].dropna()
     df.index = pd.to_datetime(df.index)
     df.sort_index(inplace=True)
+    # Re-apply provider attr after transformations
+    try:
+        if provider:
+            df.attrs["data_source"] = provider
+    except Exception:
+        pass
     return df
