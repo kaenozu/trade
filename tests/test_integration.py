@@ -59,7 +59,7 @@ class TestApplicationIntegration:
     @pytest.mark.asyncio
     async def test_detailed_health_endpoint(self):
         """Test detailed health endpoint."""
-        async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             response = await client.get("/health/detailed")
             assert response.status_code == 200
 
@@ -254,7 +254,7 @@ class TestEndToEnd:
     @pytest.mark.asyncio
     async def test_concurrent_requests(self):
         """Test handling of concurrent requests."""
-        async with httpx.AsyncClient(app=app, base_url="http://test") as client:
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://test") as client:
             # Make multiple concurrent health checks
             tasks = [
                 client.get("/healthz")

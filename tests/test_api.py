@@ -1,5 +1,5 @@
 import pytest
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
 
 from app.main import app
 from app.services import data as data_service
@@ -14,7 +14,7 @@ async def test_predict_endpoint_monkeypatched(monkeypatch):
             return make_synthetic_ohlcv(500)
 
         monkeypatch.setattr(data_service, "fetch_ohlcv", fake_fetch)
-        async with AsyncClient(app=app, base_url="http://test") as ac:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
             resp = await ac.post(
                 "/predict", json={"ticker": "TEST.T", "horizon_days": 7, "lookback_days": 400}
             )
