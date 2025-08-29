@@ -44,9 +44,24 @@ def _evaluate_cv(
     return float(np.nanmean(scores))
 
 
+_TICKER_RE = re.compile(r"^[-A-Za-z0-9._]{1,15}$")
+
+
+ndef _validate_ticker(ticker: str) -> str:
+    if not ticker or not _TICKER_RE.match(ticker):
+        raise ModelError("Invalid ticker format")
+    return ticker
+
+
 def _model_path(ticker: str) -> str:
-    base = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(MODEL_DIR, f"{base}.joblib")
+    _validate_ticker(ticker)
+    base = ticker.replace("/", "_").replace(\"\\", "_")
+    path = os.path.join(MODEL_DIR, f"{base}.joblib")
+    real = os.path.realpath(path)
+    root = os.path.realpath(MODEL_DIR)
+    if not real.startswith(root + os.sep):
+        raise ModelError("Unsafe model path")
+    return real
 
 
 def train_or_load_model(ticker: str, feat: pd.DataFrame) -> tuple[HistGradientBoostingRegressor, ModelMeta]:
