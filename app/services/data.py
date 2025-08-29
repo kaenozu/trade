@@ -6,6 +6,7 @@ import os
 import time
 import re
 import json
+from urllib.parse import quote
 
 import pandas as pd
 
@@ -26,7 +27,12 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 def _cache_path(ticker: str, period_days: int) -> str:
     safe = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    p = os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    real = os.path.realpath(p)
+    root = os.path.realpath(CACHE_DIR)
+    if not real.startswith(root + os.sep):
+        raise ValueError("Unsafe cache path")
+    return real
 
 
 _TICKER_RE = re.compile(r"^[A-Za-z0-9._-]{1,15}$")
@@ -66,7 +72,8 @@ def fetch_last_close_direct(ticker: str, timeout: float = 5.0) -> Tuple[float, s
     _validate_ticker(ticker)
     s = _make_session()
     # Use short range for speed; 5d daily ensures at least one bar
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?interval=1d&range=5d"
+    safe_ticker = quote(ticker, safe="A-Za-z0-9._-")
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{safe_ticker}?interval=1d&range=5d"
     r = s.get(url, allow_redirects=False, timeout=timeout)
     r.raise_for_status()
     data = r.json()
