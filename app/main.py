@@ -216,6 +216,11 @@ def predict(req: PredictionRequest):
         trade_plan=TradePlan(**trade),
         predictions=preds,
     )
+
+
+@app.get("/healthz")
+def healthz():
+    return {"status": "ok"}
 @app.get("/tickers")
 def tickers(q: Optional[str] = None):
     return list_jp_tickers(query=q)

@@ -30,11 +30,15 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 
 ブラウザで `http://127.0.0.1:8000/` を開き、銘柄（例: `7203.T`）を入力して実行します。
 
+ヘルスチェック: `GET /healthz` は `{ "status": "ok" }` を返します。
+
 ## 運用/監視（オプション）
 
 - メトリクス: `/metrics` にPrometheusメトリクスを公開（デフォルト有効）。無効化は `METRICS_ENABLED=0`。
 - エラートラッキング: Sentryを有効化する場合は `SENTRY_DSN` を環境変数で設定。
   - 例: `SENTRY_TRACES_SAMPLE_RATE=0.1`（APM任意）、`SENTRY_PROFILES_SAMPLE_RATE=0.1`、`SENTRY_ENV=prod`。
+
+環境変数の例は `.env.example` を参照してください。
 
 ## リリース
 
