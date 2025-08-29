@@ -223,9 +223,21 @@ def rate_limit(max_requests: int = 100, window_seconds: int = 3600):
     """Decorator for rate limiting endpoints."""
     def decorator(func: Callable) -> Callable:
         @wraps(func)
-        async def wrapper(request: Request, *args, **kwargs):
-            # Get client identifier (IP address)
-            client_ip = request.client.host if request.client else "unknown"
+        async def wrapper(*args, **kwargs):
+            # Extract Request from args/kwargs robustly
+            req_obj = None
+            for a in args:
+                if isinstance(a, Request):
+                    req_obj = a
+                    break
+            if req_obj is None:
+                for k in ("request", "http_request"):
+                    v = kwargs.get(k)
+                    if isinstance(v, Request):
+                        req_obj = v
+                        break
+
+            client_ip = req_obj.client.host if (req_obj and req_obj.client) else "unknown"
 
             # Check rate limit
             if not get_rate_limiter().is_allowed(client_ip, max_requests, window_seconds):
@@ -234,10 +246,9 @@ def rate_limit(max_requests: int = 100, window_seconds: int = 3600):
                     detail=f"Rate limit exceeded: max {max_requests} requests per {window_seconds} seconds"
                 )
 
-            return await func(request, *args, **kwargs)
+            return await func(*args, **kwargs)
         return wrapper
     return decorator
-
 
 def validate_input(**validators):
     """Decorator for input validation."""
