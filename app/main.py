@@ -71,6 +71,12 @@ class PredictionResponse(BaseModel):
     predictions: List[PredictionPoint]
 
 
+class Quote(BaseModel):
+    ticker: str
+    price: float
+    asof: str
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (
@@ -111,12 +117,30 @@ def index():
                const q=document.getElementById('q').value.trim();
                const res=await fetch('/tickers'+(q?`?q=${encodeURIComponent(q)}`:''));
                const data=await res.json();
-               let html='<table><thead><tr><th>コード</th><th>名称</th><th>セクター</th><th></th></tr></thead><tbody>';
+               let html='<table><thead><tr><th>コード</th><th>名称</th><th>セクター</th><th>現在値</th><th></th></tr></thead><tbody>';
                for(const r of data){
                  html+=`<tr><td>${r.ticker}</td><td>${r.name}</td><td>${r.sector}</td><td><button onclick="run('${r.ticker}','${r.name.replace(/'/g, "\'")}')">予測</button></td></tr>`
                }
                html+='</tbody></table>';
                document.getElementById('list').innerHTML=html;
+               // 価格列を挿入しつつ非同期で取得
+               const rows = Array.from(document.querySelectorAll('#list tbody tr'));
+               const pairs = rows.map((tr,i)=>{ const cell=tr.insertCell(3); cell.textContent='…'; return {ticker: data[i].ticker, el: cell}; });
+               const concurrency=8; let k=0;
+               async function worker(){
+                 while(k < pairs.length){
+                   const it = pairs[k++];
+                   try{
+                     const res = await fetch('/quote?ticker='+encodeURIComponent(it.ticker));
+                     if(!res.ok) throw new Error(String(res.status));
+                     const q = await res.json();
+                     it.el.textContent = Number(q.price).toFixed(2);
+                   }catch(_){
+                     it.el.textContent = '—';
+                   }
+                 }
+               }
+               await Promise.all(Array(concurrency).fill(0).map(()=>worker()));
             }
             async function run(ticker,name){
                const horizon=parseInt(document.getElementById('horizon').value,10);
@@ -125,7 +149,21 @@ def index():
                document.getElementById('plan').textContent='Running...';
                const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker,horizon_days:horizon,lookback_days:lookback})});
                if(!res.ok){
-                 document.getElementById('plan').textContent='Error: '+res.status;
+                 try{
+                   const errText = await res.text();
+                   let msg = 'Error: '+res.status;
+                   try{
+                     const errJson = JSON.parse(errText);
+                     if(errJson && (errJson.detail || errJson.message)){
+                       msg += ' - ' + (errJson.detail || errJson.message);
+                     }
+                   }catch(_){
+                     if(errText) msg += ' - '+errText;
+                   }
+                   document.getElementById('plan').textContent = msg;
+                 }catch(_){
+                   document.getElementById('plan').textContent='Error: '+res.status;
+                 }
                  return;
                }
                const data=await res.json();
@@ -181,3 +219,25 @@ def predict(req: PredictionRequest):
 @app.get("/tickers")
 def tickers(q: Optional[str] = None):
     return list_jp_tickers(query=q)
+
+
+@app.get("/quote", response_model=Quote)
+def quote(ticker: str):
+    # Basic input sanitation (also validated in data layer)
+    if not ticker or len(ticker) > 15:
+        raise HTTPException(status_code=400, detail="Invalid ticker")
+    # Prefer direct lightweight quote for robustness
+    try:
+        price, asof = data_service.fetch_last_close_direct(ticker)
+        return Quote(ticker=ticker, price=price, asof=asof)
+    except Exception:
+        # Fallback to OHLCV fetch
+        try:
+            df = data_service.fetch_ohlcv(ticker, period_days=90)
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
+        if len(df) == 0:
+            raise HTTPException(status_code=400, detail="No data")
+        last_idx = df.index.max()
+        last_close = float(df.loc[last_idx, "Close"])
+        return Quote(ticker=ticker, price=last_close, asof=str(pd.to_datetime(last_idx).date()))
