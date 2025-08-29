@@ -3,27 +3,36 @@
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from ..core.services import ServiceContainer, get_container
 from ..models.api_models import PredictionPoint, PredictionRequest, PredictionResponse, TradePlan
-from ..services import data as data_service
-from ..services.features import build_feature_frame
-from ..services.model import predict_future, train_or_load_model
-from ..services.signals import generate_trade_plan
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 @router.post("/predict", response_model=PredictionResponse)
-def predict_stock(request: PredictionRequest) -> PredictionResponse:
+async def predict_stock(
+    request: PredictionRequest,
+    container: ServiceContainer = Depends(get_container)
+) -> PredictionResponse:
     """Generate ML-based stock predictions and trading plan."""
+    logger.info("Processing prediction request for %s", request.ticker)
+    
+    data_service = container.get_data_service()
+    feature_service = container.get_feature_service()
+    model_service = container.get_model_service()
+    signal_service = container.get_signal_service()
+    
     try:
-        df = data_service.fetch_ohlcv(
+        # Fetch market data asynchronously for better performance
+        df = await data_service.fetch_ohlcv_async(
             request.ticker, 
             period_days=request.lookback_days + 5
         )
-    except ValueError as e:
+    except Exception as e:
+        logger.warning("Data fetch failed for %s: %s", request.ticker, e)
         raise HTTPException(status_code=400, detail=str(e)) from e
 
     if len(df) < 200:
@@ -34,17 +43,26 @@ def predict_stock(request: PredictionRequest) -> PredictionResponse:
 
     try:
         # Feature engineering
-        features = build_feature_frame(df)
+        features = feature_service.build_features(df)
         
         # Train or load model
-        model, meta = train_or_load_model(request.ticker, features)
-        logger.info("Using model for %s with R2=%.3f", request.ticker, meta.r2_mean)
+        model, meta = model_service.train_or_load_model(request.ticker, features)
+        
+        # Handle both dict and object types for meta
+        if hasattr(meta, 'r2_mean'):
+            r2_score = meta.r2_mean
+        elif isinstance(meta, dict):
+            r2_score = meta.get('r2_mean', 0.0)
+        else:
+            r2_score = 0.0
+            
+        logger.info("Using model for %s with R2=%.3f", request.ticker, r2_score)
         
         # Generate predictions
-        pred_df = predict_future(df, features, model, horizon_days=request.horizon_days)
+        pred_df = model_service.predict_future(df, features, model, horizon_days=request.horizon_days)
         
         # Generate trading plan
-        trade_plan_data = generate_trade_plan(pred_df)
+        trade_plan_data = signal_service.generate_trade_plan(pred_df)
         
         # Format response
         predictions = [
@@ -63,6 +81,7 @@ def predict_stock(request: PredictionRequest) -> PredictionResponse:
             rationale=trade_plan_data["rationale"]
         )
         
+        logger.info("Successfully generated %d predictions for %s", len(predictions), request.ticker)
         return PredictionResponse(
             ticker=request.ticker,
             horizon_days=request.horizon_days,

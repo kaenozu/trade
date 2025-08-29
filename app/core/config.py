@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     app_name: str = "JP Stocks ML Forecaster"
     app_version: str = "0.1.0"
     debug: bool = False
+    log_level: str = "INFO"
     
     # API
     api_host: str = "0.0.0.0"
