@@ -171,8 +171,7 @@ def index():
 def predict(req: PredictionRequest):
     try:
         df = data_service.fetch_ohlcv(req.ticker, period_days=req.lookback_days + 5)
-    except ValueError as e:
-        raise HTTPException() from e
+    except ValueError as e:`n            raise HTTPException(status_code=400, detail=str(e)) from e from e
 
     if len(df) < 200:
         raise HTTPException(status_code=400, detail="Not enough data to train")
@@ -218,8 +217,7 @@ def quote(ticker: str):
         # Fallback to OHLCV fetch
         try:
             df = data_service.fetch_ohlcv(ticker, period_days=90)
-        except ValueError as e:
-        raise HTTPException() from e
+        except ValueError as e:`n            raise HTTPException(status_code=400, detail=str(e)) from e from e
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="No data")
         last_idx: pd.Timestamp = df.index.max()  # type: ignore
