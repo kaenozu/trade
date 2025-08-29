@@ -255,4 +255,3 @@ def quotes(tickers: str):
             except Exception as e2:
                 out.append(QuoteItem(ticker=t, error=str(e2)))
     return BulkQuotesResponse(quotes=out)
-
