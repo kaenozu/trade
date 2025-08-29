@@ -3,6 +3,20 @@ from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 from typing import List, Optional
 import pandas as pd
+import os
+
+# Optional observability (non-fatal if missing)
+try:
+    from prometheus_fastapi_instrumentator import Instrumentator  # type: ignore
+except Exception:  # pragma: no cover
+    Instrumentator = None  # type: ignore
+
+try:
+    import sentry_sdk  # type: ignore
+    from sentry_sdk.integrations.fastapi import FastApiIntegration  # type: ignore
+except Exception:  # pragma: no cover
+    sentry_sdk = None  # type: ignore
+    FastApiIntegration = None  # type: ignore
 
 from .services import data as data_service
 from .services.features import build_feature_frame
@@ -11,6 +25,24 @@ from .services.signals import generate_trade_plan
 from .services.tickers import list_jp_tickers
 
 app = FastAPI(title="JP Stocks ML Forecaster", version="0.1.0")
+
+# Sentry (enabled when SENTRY_DSN is provided)
+_sentry_dsn = os.environ.get("SENTRY_DSN")
+if _sentry_dsn and sentry_sdk and FastApiIntegration:  # pragma: no cover
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        integrations=[FastApiIntegration()],
+        traces_sample_rate=float(os.environ.get("SENTRY_TRACES_SAMPLE_RATE", "0.0")),
+        profiles_sample_rate=float(os.environ.get("SENTRY_PROFILES_SAMPLE_RATE", "0.0")),
+        environment=os.environ.get("SENTRY_ENV", "production"),
+    )
+
+# Prometheus metrics (enabled by default; disable via METRICS_ENABLED=0)
+if os.environ.get("METRICS_ENABLED", "1") not in ("0", "false", "False") and Instrumentator:  # pragma: no cover
+    try:
+        Instrumentator().instrument(app).expose(app, include_in_schema=False)
+    except Exception:
+        pass
 
 
 class PredictionRequest(BaseModel):

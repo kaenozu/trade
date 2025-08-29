@@ -30,6 +30,18 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 
 ブラウザで `http://127.0.0.1:8000/` を開き、銘柄（例: `7203.T`）を入力して実行します。
 
+## 運用/監視（オプション）
+
+- メトリクス: `/metrics` にPrometheusメトリクスを公開（デフォルト有効）。無効化は `METRICS_ENABLED=0`。
+- エラートラッキング: Sentryを有効化する場合は `SENTRY_DSN` を環境変数で設定。
+  - 例: `SENTRY_TRACES_SAMPLE_RATE=0.1`（APM任意）、`SENTRY_PROFILES_SAMPLE_RATE=0.1`、`SENTRY_ENV=prod`。
+
+## リリース
+
+- タグ付け（例）: `git tag v0.1.0 && git push origin v0.1.0`
+- GitHub ActionsがDockerをビルドしGHCRへpush、GitHub Releaseを作成します。
+  - イメージ: `ghcr.io/<owner>/<repo>:latest` および `:v0.1.0`
+
 ## テスト
 
 ```
