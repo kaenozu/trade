@@ -45,6 +45,17 @@ class Quote(BaseModel):
     asof: str
 
 
+class QuoteItem(BaseModel):
+    ticker: str
+    price: Optional[float] = None
+    asof: Optional[str] = None
+    error: Optional[str] = None
+
+
+class BulkQuotesResponse(BaseModel):
+    quotes: List[QuoteItem]
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (
@@ -65,16 +76,7 @@ def index():
         </head>
         <body>
           <h2>日本株 予測・売買タイミング（デモ）</h2>
-          <div class='row'>
-            <input id='q' placeholder='銘柄名/コード/セクターで検索' style='width:320px' />
-            <button onclick='loadTickers()'>検索</button>
-          </div>
-          <div class='row'>
-            <label>予測日数</label>
-            <input id='horizon' type='number' value='10' min='1' max='30' />
-            <label>学習過去日数</label>
-            <input id='lookback' type='number' value='400' min='200' max='1200' />
-          </div>
+          <div class='row' style='color:#555'>一覧から銘柄を選んで「予測」を押してください（予測日数=10日、学習期間=400日）。</div>
           <div id='list'></div>
           <hr/>
           <h3 id='selTitle'>選択銘柄: -</h3>
@@ -82,8 +84,7 @@ def index():
           <div id='preds'></div>
           <script>
             async function loadTickers(){
-               const q=document.getElementById('q').value.trim();
-               const res=await fetch('/tickers'+(q?`?q=${encodeURIComponent(q)}`:''));
+               const res=await fetch('/tickers');
                const data=await res.json();
                let html='<table><thead><tr><th>コード</th><th>名称</th><th>セクター</th><th>現在値</th><th></th></tr></thead><tbody>';
                for(const r of data){
@@ -94,25 +95,28 @@ def index():
                // 価格列を挿入しつつ非同期で取得
                const rows = Array.from(document.querySelectorAll('#list tbody tr'));
                const pairs = rows.map((tr,i)=>{ const cell=tr.insertCell(3); cell.textContent='…'; return {ticker: data[i].ticker, el: cell}; });
-               const concurrency=8; let k=0;
-               async function worker(){
-                 while(k < pairs.length){
-                   const it = pairs[k++];
-                   try{
-                     const res = await fetch('/quote?ticker='+encodeURIComponent(it.ticker));
-                     if(!res.ok) throw new Error(String(res.status));
-                     const q = await res.json();
-                     it.el.textContent = Number(q.price).toFixed(2);
-                   }catch(_){
-                     it.el.textContent = '—';
+               // 一括取得で現在値を埋める
+               try{
+                 const tickers = data.map(r=>r.ticker).join(',');
+                 const res2 = await fetch('/quotes?tickers='+encodeURIComponent(tickers));
+                 if(res2.ok){
+                   const payload = await res2.json();
+                   const map = new Map(payload.quotes.map(q=>[q.ticker, q]));
+                   for(const it of pairs){
+                     const q = map.get(it.ticker);
+                     if(q && q.price!=null) it.el.textContent = Number(q.price).toFixed(2);
+                     else it.el.textContent = '—';
                    }
+                 } else {
+                   for(const it of pairs){ it.el.textContent = '—'; }
                  }
+               }catch(_){
+                 for(const it of pairs){ it.el.textContent = '—'; }
                }
-               await Promise.all(Array(concurrency).fill(0).map(()=>worker()));
             }
             async function run(ticker,name){
-               const horizon=parseInt(document.getElementById('horizon').value,10);
-               const lookback=parseInt(document.getElementById('lookback').value,10);
+               const horizon=10; // default
+               const lookback=400; // default
                document.getElementById('selTitle').textContent=`選択銘柄: ${ticker} ${name||''}`
                document.getElementById('plan').textContent='Running...';
                const res=await fetch('/predict',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ticker,horizon_days:horizon,lookback_days:lookback})});
@@ -209,3 +213,35 @@ def quote(ticker: str):
         last_idx = df.index.max()
         last_close = float(df.loc[last_idx, "Close"])
         return Quote(ticker=ticker, price=last_close, asof=str(pd.to_datetime(last_idx).date()))
+
+
+@app.get("/quotes", response_model=BulkQuotesResponse)
+def quotes(tickers: str):
+    if not tickers:
+        raise HTTPException(status_code=400, detail="tickers is required")
+    raw = [t.strip() for t in tickers.split(",") if t.strip()]
+    # de-dup and cap to 300
+    seen = []
+    for t in raw:
+        if t not in seen:
+            seen.append(t)
+        if len(seen) >= 300:
+            break
+    out: List[QuoteItem] = []
+    for t in seen:
+        try:
+            price, asof = data_service.fetch_last_close_direct(t)
+            out.append(QuoteItem(ticker=t, price=price, asof=asof))
+        except Exception as e:
+            # Fallback to OHLCV
+            try:
+                df = data_service.fetch_ohlcv(t, period_days=60)
+                if len(df) > 0:
+                    last_idx = df.index.max()
+                    last_close = float(df.loc[last_idx, "Close"])
+                    out.append(QuoteItem(ticker=t, price=last_close, asof=str(pd.to_datetime(last_idx).date())))
+                else:
+                    out.append(QuoteItem(ticker=t, error=str(e)))
+            except Exception as e2:
+                out.append(QuoteItem(ticker=t, error=str(e2)))
+    return BulkQuotesResponse(quotes=out)
