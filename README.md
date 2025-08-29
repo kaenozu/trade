@@ -1,8 +1,5 @@
 # JP Stocks ML Forecaster
 
-[![CI](https://github.com/kaenozu/trade/actions/workflows/ci.yml/badge.svg)](https://github.com/kaenozu/trade/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/kaenozu/trade/branch/main/graph/badge.svg)](https://codecov.io/gh/kaenozu/trade)
-
 日本株の終値データから機械学習で短期リターンを予測し、予測区間内での「買い・売り」タイミングを提示する FastAPI アプリです。
 
 ## セットアップ
@@ -15,8 +12,6 @@ pip install -r requirements.txt
 ```
 
 ## 起動
-
-- 直接起動:
 
 ```
 uvicorn app.main:app --reload --port 8000
@@ -41,11 +36,10 @@ powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 
 環境変数の例は `.env.example` を参照してください。
 
-## リリース
+## API
 
-- タグ付け（例）: `git tag v0.1.0 && git push origin v0.1.0`
-- GitHub ActionsがDockerをビルドしGHCRへpush、GitHub Releaseを作成します。
-  - イメージ: `ghcr.io/<owner>/<repo>:latest` および `:v0.1.0`
+- `GET /quote?ticker=XXXX`: 単一のティッカーの現在値を取得します。
+- `GET /quotes?tickers=a,b,c`: 複数のティッカーの現在値を一括で取得します。
 
 ## テスト
 
@@ -67,4 +61,3 @@ pytest -q
 
 ## 免責事項
 本ツールは教育目的のデモです。投資判断はご自身の責任で行ってください。過去実績は将来の結果を保証しません。
-

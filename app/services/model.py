@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-import json
 from dataclasses import dataclass
-from typing import Dict, Tuple
+from typing import Tuple
 
 import joblib
 import numpy as np
@@ -83,7 +82,7 @@ def predict_future(df_price: pd.DataFrame, feat: pd.DataFrame, model: HistGradie
     rows = []
     for i in range(1, horizon_days + 1):
         # Predict using the last known features
-        pred_ret = float(model.predict(X_last.values.reshape(1, -1))[0])
+        pred_ret = float(model.predict(X_last.values.reshape(1, -1))[0])  # type: ignore
         current_close = float(current_close * (1.0 + pred_ret))
 
         # Append a new day with naive OHLCV (close-only driven)
