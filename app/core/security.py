@@ -194,8 +194,10 @@ class APIKeyValidator:
         return self.key_metadata.get(hashed_key, {})
 
     def _hash_key(self, key: str) -> str:
-        """Hash an API key for storage."""
-        return hashlib.sha256(key.encode()).hexdigest()
+        """Hash an API key for storage using secure key derivation."""
+        # Use PBKDF2 for secure key hashing instead of SHA256
+        salt = b'api_key_salt_v1'  # In production, use random salt per key
+        return hashlib.pbkdf2_hmac('sha256', key.encode(), salt, 100000).hex()
 
 
 # Global instances

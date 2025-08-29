@@ -38,10 +38,20 @@ def serve_index() -> str:
        const data=await res.json();
        let html='<table><thead><tr><th>コード</th><th>名称</th><th>セクター</th><th>現在値</th><th></th></tr></thead><tbody>';
        for(const r of data){
-         html+=`<tr><td>${r.ticker}</td><td>${r.name}</td><td>${r.sector}</td><td><button onclick="run('${r.ticker}','${r.name.replace(/'/g, "\\'")}')">予測</button></td></tr>`
+         html+=`<tr><td>${r.ticker}</td><td>${r.name}</td><td>${r.sector}</td><td><button class="predict-btn" data-ticker="${r.ticker}" data-name="${r.name}">予測</button></td></tr>`
        }
        html+='</tbody></table>';
        document.getElementById('list').innerHTML=html;
+       
+       // Add event listeners to buttons to avoid XSS issues
+       document.getElementById('list').querySelectorAll('.predict-btn').forEach(button => {
+         button.addEventListener('click', (event) => {
+           const ticker = event.currentTarget.dataset.ticker;
+           const name = event.currentTarget.dataset.name;
+           run(ticker, name);
+         });
+       });
+       
        // 価格列を挿入しつつ非同期で取得
        const rows = Array.from(document.querySelectorAll('#list tbody tr'));
        const pairs = rows.map((tr,i)=>{ const cell=tr.insertCell(3); cell.textContent='…'; return {ticker: data[i].ticker, el: cell}; });

@@ -32,7 +32,7 @@ async def get_quote(
     try:
         price, asof = data_service.fetch_last_close_direct(ticker)
         return Quote(ticker=ticker, price=price, asof=asof)
-    except Exception as e:
+    except (ValueError, KeyError) as e:
         logger.debug("Direct quote failed for %s: %s", ticker, e)
         # Fallback to OHLCV fetch
         try:
@@ -99,7 +99,7 @@ async def get_bulk_quotes(
             try:
                 price, asof = data_service.fetch_last_close_direct(ticker)
                 quotes.append(QuoteItem(ticker=ticker, price=price, asof=asof))
-            except Exception as e:
+            except (ValueError, KeyError) as e:
                 logger.debug("Direct quote failed for %s: %s", ticker, e)
                 quotes.append(QuoteItem(ticker=ticker, error=str(e)))
 
