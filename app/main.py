@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from .api import frontend, health, predictions, quotes, tickers
 from .core.config import settings
 from .core.error_handlers import setup_error_handlers
+from .core.metrics import setup_metrics_middleware
 from .core.middleware import setup_cors, setup_logging, setup_prometheus, setup_sentry, setup_request_logging
+from .core.security import setup_security_headers
 
 # Setup logging
 setup_logging()
@@ -26,6 +28,8 @@ app = FastAPI(
 )
 
 # Setup middleware
+setup_security_headers(app)
+setup_metrics_middleware(app)
 setup_request_logging(app)
 setup_cors(app)
 setup_prometheus(app)

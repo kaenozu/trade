@@ -125,6 +125,7 @@ def fetch_ohlcv(
     cache_file = _cache_path(ticker, period_days)
     now = time.time()
     if os.path.exists(cache_file) and (now - os.path.getmtime(cache_file) <= ttl_seconds):
+        ticker = _validate_ticker(ticker)
         try:
             df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
         except Exception:

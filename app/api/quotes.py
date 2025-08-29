@@ -3,8 +3,9 @@
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from ..core.security import rate_limit, validate_input
 from ..core.services import ServiceContainer, get_container
 from ..models.api_models import BulkQuotesResponse, Quote, QuoteItem
 
@@ -13,7 +14,10 @@ router = APIRouter()
 
 
 @router.get("/quote", response_model=Quote)
+@rate_limit(max_requests=60, window_seconds=60)  # 60 requests per minute
+@validate_input(ticker={'type': 'ticker'})
 async def get_quote(
+    request: Request,
     ticker: str,
     container: ServiceContainer = Depends(get_container)
 ) -> Quote:
@@ -49,7 +53,10 @@ async def get_quote(
 
 
 @router.get("/quotes", response_model=BulkQuotesResponse) 
+@rate_limit(max_requests=30, window_seconds=60)  # 30 requests per minute for bulk
+@validate_input(tickers={'type': 'string', 'max_length': 5000})
 async def get_bulk_quotes(
+    request: Request,
     tickers: str,
     container: ServiceContainer = Depends(get_container)
 ) -> BulkQuotesResponse:

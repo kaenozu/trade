@@ -3,8 +3,9 @@
 import logging
 
 import pandas as pd
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
+from ..core.security import rate_limit, validate_input
 from ..core.services import ServiceContainer, get_container
 from ..models.api_models import PredictionPoint, PredictionRequest, PredictionResponse, TradePlan
 
@@ -13,7 +14,9 @@ router = APIRouter()
 
 
 @router.post("/predict", response_model=PredictionResponse)
+@rate_limit(max_requests=10, window_seconds=60)  # 10 predictions per minute
 async def predict_stock(
+    http_request: Request,
     request: PredictionRequest,
     container: ServiceContainer = Depends(get_container)
 ) -> PredictionResponse:
