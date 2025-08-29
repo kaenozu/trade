@@ -35,7 +35,7 @@ class HealthCheckResult:
     response_time_ms: Optional[float] = None
     timestamp: datetime = None
     details: Optional[Dict] = None
-    
+
     def __post_init__(self):
         if self.timestamp is None:
             self.timestamp = datetime.now()
@@ -43,16 +43,16 @@ class HealthCheckResult:
 
 class HealthChecker(ABC):
     """Abstract base class for health checkers."""
-    
+
     def __init__(self, name: str, timeout_seconds: float = 5.0):
         self.name = name
         self.timeout_seconds = timeout_seconds
-    
+
     @abstractmethod
     async def check_health(self) -> HealthCheckResult:
         """Perform the health check."""
         pass
-    
+
     async def _timed_check(self, check_func) -> HealthCheckResult:
         """Execute a check function with timing."""
         start_time = time.time()
@@ -79,23 +79,23 @@ class HealthChecker(ABC):
 
 class DatabaseHealthChecker(HealthChecker):
     """Health checker for database connectivity."""
-    
+
     def __init__(self):
         super().__init__("database", timeout_seconds=3.0)
-    
+
     async def check_health(self) -> HealthCheckResult:
         """Check database health."""
         return await self._timed_check(self._check_db_connection)
-    
+
     async def _check_db_connection(self) -> HealthCheckResult:
         """Check database connection."""
         # For now, since we don't have a database, this is a placeholder
         # In the future, this would test actual database connectivity
-        
+
         try:
             # Simulate database check
             await asyncio.sleep(0.01)  # Simulate network latency
-            
+
             return HealthCheckResult(
                 service=self.name,
                 status=HealthStatus.HEALTHY,
@@ -112,28 +112,28 @@ class DatabaseHealthChecker(HealthChecker):
 
 class CacheHealthChecker(HealthChecker):
     """Health checker for cache system."""
-    
+
     def __init__(self):
         super().__init__("cache", timeout_seconds=2.0)
-    
+
     async def check_health(self) -> HealthCheckResult:
         """Check cache health."""
         return await self._timed_check(self._check_cache_system)
-    
+
     async def _check_cache_system(self) -> HealthCheckResult:
         """Check cache system health."""
         try:
             from .cache import get_cache
             cache = get_cache()
-            
+
             # Test cache operations
             test_key = "health_check_test"
             test_value = {"timestamp": datetime.now().isoformat()}
-            
+
             # Test write and read
             await cache.set(test_key, test_value)
             cached_result = await cache.get(test_key, max_age_seconds=60)
-            
+
             if cached_result is not None:
                 return HealthCheckResult(
                     service=self.name,
@@ -147,7 +147,7 @@ class CacheHealthChecker(HealthChecker):
                     status=HealthStatus.DEGRADED,
                     message="Cache write/read test failed"
                 )
-                
+
         except Exception as e:
             return HealthCheckResult(
                 service=self.name,
@@ -158,14 +158,14 @@ class CacheHealthChecker(HealthChecker):
 
 class ExternalAPIHealthChecker(HealthChecker):
     """Health checker for external APIs."""
-    
+
     def __init__(self):
         super().__init__("external_apis", timeout_seconds=5.0)
-    
+
     async def check_health(self) -> HealthCheckResult:
         """Check external API health."""
         return await self._timed_check(self._check_external_apis)
-    
+
     async def _check_external_apis(self) -> HealthCheckResult:
         """Check external API availability."""
         try:
@@ -175,7 +175,7 @@ class ExternalAPIHealthChecker(HealthChecker):
                     "https://httpbin.org/status/200",
                     timeout=3.0
                 )
-                
+
                 if response.status_code == 200:
                     return HealthCheckResult(
                         service=self.name,
@@ -189,7 +189,7 @@ class ExternalAPIHealthChecker(HealthChecker):
                         status=HealthStatus.DEGRADED,
                         message=f"External API returned status {response.status_code}"
                     )
-                    
+
         except Exception as e:
             return HealthCheckResult(
                 service=self.name,
@@ -200,37 +200,37 @@ class ExternalAPIHealthChecker(HealthChecker):
 
 class SystemResourcesHealthChecker(HealthChecker):
     """Health checker for system resources."""
-    
+
     def __init__(self):
         super().__init__("system_resources", timeout_seconds=1.0)
-    
+
     async def check_health(self) -> HealthCheckResult:
         """Check system resource health."""
         return await self._timed_check(self._check_system_resources)
-    
+
     async def _check_system_resources(self) -> HealthCheckResult:
         """Check system resource availability."""
         try:
             import psutil
-            
+
             # Check memory usage
             memory = psutil.virtual_memory()
             memory_usage_percent = memory.percent
-            
+
             # Check disk usage
             disk = psutil.disk_usage('/')
             disk_usage_percent = (disk.used / disk.total) * 100
-            
+
             # Check CPU usage (brief sample)
             cpu_percent = psutil.cpu_percent(interval=0.1)
-            
+
             details = {
                 "memory_usage_percent": memory_usage_percent,
                 "disk_usage_percent": disk_usage_percent,
                 "cpu_usage_percent": cpu_percent,
                 "available_memory_gb": memory.available / (1024**3)
             }
-            
+
             # Determine status based on resource usage
             if memory_usage_percent > 90 or disk_usage_percent > 90:
                 status = HealthStatus.UNHEALTHY
@@ -241,14 +241,14 @@ class SystemResourcesHealthChecker(HealthChecker):
             else:
                 status = HealthStatus.HEALTHY
                 message = "System resources within normal limits"
-            
+
             return HealthCheckResult(
                 service=self.name,
                 status=status,
                 message=message,
                 details=details
             )
-            
+
         except ImportError:
             return HealthCheckResult(
                 service=self.name,
@@ -265,14 +265,14 @@ class SystemResourcesHealthChecker(HealthChecker):
 
 class ModelHealthChecker(HealthChecker):
     """Health checker for ML model functionality."""
-    
+
     def __init__(self):
         super().__init__("ml_models", timeout_seconds=10.0)
-    
+
     async def check_health(self) -> HealthCheckResult:
         """Check ML model health."""
         return await self._timed_check(self._check_model_functionality)
-    
+
     async def _check_model_functionality(self) -> HealthCheckResult:
         """Check that model training/prediction works."""
         try:
@@ -284,11 +284,11 @@ class ModelHealthChecker(HealthChecker):
                 'Close': [101, 102, 103, 104, 105] * 20,
                 'Volume': [1000, 1100, 1200, 1300, 1400] * 20,
             }, index=pd.date_range('2020-01-01', periods=100, freq='D'))
-            
+
             # Test feature building
             from ..services.features import build_feature_frame
             features = build_feature_frame(test_data)
-            
+
             if len(features) > 0:
                 return HealthCheckResult(
                     service=self.name,
@@ -305,7 +305,7 @@ class ModelHealthChecker(HealthChecker):
                     status=HealthStatus.UNHEALTHY,
                     message="Feature generation failed"
                 )
-                
+
         except Exception as e:
             return HealthCheckResult(
                 service=self.name,
@@ -316,7 +316,7 @@ class ModelHealthChecker(HealthChecker):
 
 class HealthCheckService:
     """Service for coordinating health checks."""
-    
+
     def __init__(self):
         self.checkers: List[HealthChecker] = [
             DatabaseHealthChecker(),
@@ -326,28 +326,28 @@ class HealthCheckService:
             ModelHealthChecker()
         ]
         self.metrics = get_metrics_collector()
-    
+
     async def check_all(self) -> Dict[str, HealthCheckResult]:
         """Run all health checks."""
         logger.info("Running comprehensive health checks")
-        
+
         tasks = [checker.check_health() for checker in self.checkers]
         results = await asyncio.gather(*tasks, return_exceptions=True)
-        
+
         health_results = {}
-        
+
         for i, result in enumerate(results):
             checker = self.checkers[i]
-            
+
             if isinstance(result, Exception):
                 result = HealthCheckResult(
                     service=checker.name,
                     status=HealthStatus.UNHEALTHY,
                     message=f"Health check exception: {str(result)}"
                 )
-            
+
             health_results[checker.name] = result
-            
+
             # Record metrics
             status_value = 1 if result.status == HealthStatus.HEALTHY else 0
             self.metrics.record_metric(
@@ -355,24 +355,24 @@ class HealthCheckService:
                 status_value,
                 {"status": result.status.value}
             )
-            
+
             if result.response_time_ms:
                 self.metrics.record_metric(
                     f"health_check_{checker.name}_duration",
                     result.response_time_ms / 1000,  # Convert to seconds
                     {"status": result.status.value}
                 )
-        
+
         logger.info("Health checks completed: %d services checked", len(health_results))
         return health_results
-    
+
     async def get_overall_health(self) -> Dict:
         """Get overall application health status."""
         health_results = await self.check_all()
-        
+
         # Determine overall status
         statuses = [result.status for result in health_results.values()]
-        
+
         if any(status == HealthStatus.UNHEALTHY for status in statuses):
             overall_status = HealthStatus.UNHEALTHY
         elif any(status == HealthStatus.DEGRADED for status in statuses):
@@ -381,18 +381,18 @@ class HealthCheckService:
             overall_status = HealthStatus.DEGRADED  # Treat unknown as degraded
         else:
             overall_status = HealthStatus.HEALTHY
-        
+
         # Calculate response time stats
         response_times = [
-            r.response_time_ms for r in health_results.values() 
+            r.response_time_ms for r in health_results.values()
             if r.response_time_ms is not None
         ]
-        
+
         avg_response_time = (
-            sum(response_times) / len(response_times) 
+            sum(response_times) / len(response_times)
             if response_times else None
         )
-        
+
         return {
             "overall_status": overall_status.value,
             "timestamp": datetime.now().isoformat(),

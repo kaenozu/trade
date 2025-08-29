@@ -65,10 +65,10 @@ class ModelService(ModelServiceInterface):
         return model.train_or_load_model(ticker, feat)
 
     def predict_future(
-        self, 
-        df: pd.DataFrame, 
-        feat: pd.DataFrame, 
-        model: Any, 
+        self,
+        df: pd.DataFrame,
+        feat: pd.DataFrame,
+        model: Any,
         horizon_days: int
     ) -> pd.DataFrame:
         """Generate future predictions."""

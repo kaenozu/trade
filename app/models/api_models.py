@@ -64,8 +64,8 @@ class VersionResponse(BaseModel):
     app: str = Field(..., description="Application name")
     version: str = Field(..., description="Application version")
     git_sha: Optional[str] = Field(None, description="Git commit SHA")
-    
-    
+
+
 class TickerInfo(BaseModel):
     """Ticker information."""
     ticker: str = Field(..., description="Stock ticker symbol")

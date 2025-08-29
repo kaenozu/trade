@@ -19,14 +19,14 @@ async def get_tickers(
     """Get list of available Japanese stock tickers."""
     ticker_service = container.get_ticker_service()
     logger.debug("Fetching tickers with query: %s", q)
-    
+
     raw_tickers = ticker_service.list_tickers(query=q)
     logger.info("Found %d tickers", len(raw_tickers))
-    
+
     return [
         TickerInfo(
             ticker=ticker["ticker"],
-            name=ticker["name"], 
+            name=ticker["name"],
             sector=ticker["sector"]
         )
         for ticker in raw_tickers

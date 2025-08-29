@@ -35,10 +35,10 @@ async def readiness_probe():
     """Kubernetes-style readiness probe."""
     health_service = get_health_service()
     overall_health = await health_service.get_overall_health()
-    
+
     # Ready if not unhealthy
     is_ready = overall_health["overall_status"] != "unhealthy"
-    
+
     if is_ready:
         return {"status": "ready"}
     else:

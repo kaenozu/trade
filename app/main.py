@@ -51,7 +51,7 @@ async def startup_event():
     logger.info("Starting %s v%s", settings.app_name, settings.app_version)
     if settings.git_sha:
         logger.info("Git SHA: %s", settings.git_sha)
-    
+
     # Log configuration
     logger.info("Cache directory: %s", settings.cache_directory)
     logger.info("Model directory: %s", settings.model_directory)
@@ -67,7 +67,7 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     import uvicorn
-    
+
     uvicorn.run(
         "app.main:app",
         host=settings.api_host,

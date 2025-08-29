@@ -32,11 +32,11 @@ def setup_sentry() -> None:
     """Configure Sentry for error tracking."""
     if not settings.sentry_dsn:
         return
-        
+
     try:
         import sentry_sdk
         from sentry_sdk.integrations.fastapi import FastApiIntegration
-        
+
         sentry_sdk.init(
             dsn=settings.sentry_dsn,
             integrations=[FastApiIntegration()],
@@ -56,10 +56,10 @@ def setup_prometheus(app: FastAPI) -> None:
     if not settings.metrics_enabled:
         logger.info("Prometheus metrics disabled")
         return
-        
+
     try:
         from prometheus_fastapi_instrumentator import Instrumentator
-        
+
         Instrumentator().instrument(app).expose(app, include_in_schema=False)
         logger.info("Prometheus metrics enabled at /metrics")
     except ImportError:
@@ -70,15 +70,15 @@ def setup_prometheus(app: FastAPI) -> None:
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Middleware to log HTTP requests and responses."""
-    
+
     def __init__(self, app):
         super().__init__(app)
         self.logger = get_performance_logger(__name__)
-    
+
     async def dispatch(self, request: Request, call_next) -> Response:
         """Log request and response details with timing."""
         start_time = time.time()
-        
+
         # Log incoming request
         self.logger.log_api_request(
             endpoint=str(request.url.path),
@@ -86,14 +86,14 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             client_ip=request.client.host if request.client else "unknown",
             user_agent=request.headers.get("user-agent", "unknown")
         )
-        
+
         try:
             # Process request
             response = await call_next(request)
-            
+
             # Calculate duration
             duration = time.time() - start_time
-            
+
             # Log response
             logging.getLogger(__name__).info(
                 "Request completed: %s %s - %d (%.3fs)",
@@ -109,9 +109,9 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
                     "type": "http_response"
                 }
             )
-            
+
             return response
-            
+
         except Exception as e:
             duration = time.time() - start_time
             logging.getLogger(__name__).error(

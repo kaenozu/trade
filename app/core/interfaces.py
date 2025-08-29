@@ -54,10 +54,10 @@ class ModelServiceInterface(ABC):
 
     @abstractmethod
     def predict_future(
-        self, 
-        df: pd.DataFrame, 
-        feat: pd.DataFrame, 
-        model: Any, 
+        self,
+        df: pd.DataFrame,
+        feat: pd.DataFrame,
+        model: Any,
         horizon_days: int
     ) -> pd.DataFrame:
         """Generate future predictions."""

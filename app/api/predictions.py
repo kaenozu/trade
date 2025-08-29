@@ -22,16 +22,16 @@ async def predict_stock(
 ) -> PredictionResponse:
     """Generate ML-based stock predictions and trading plan."""
     logger.info("Processing prediction request for %s", request.ticker)
-    
+
     data_service = container.get_data_service()
     feature_service = container.get_feature_service()
     model_service = container.get_model_service()
     signal_service = container.get_signal_service()
-    
+
     try:
         # Fetch market data asynchronously for better performance
         df = await data_service.fetch_ohlcv_async(
-            request.ticker, 
+            request.ticker,
             period_days=request.lookback_days + 5
         )
     except Exception as e:
@@ -40,17 +40,17 @@ async def predict_stock(
 
     if len(df) < 200:
         raise HTTPException(
-            status_code=400, 
+            status_code=400,
             detail="Not enough data to train model (minimum 200 days required)"
         )
 
     try:
         # Feature engineering
         features = feature_service.build_features(df)
-        
+
         # Train or load model
         model, meta = model_service.train_or_load_model(request.ticker, features)
-        
+
         # Handle both dict and object types for meta
         if hasattr(meta, 'r2_mean'):
             r2_score = meta.r2_mean
@@ -58,15 +58,15 @@ async def predict_stock(
             r2_score = meta.get('r2_mean', 0.0)
         else:
             r2_score = 0.0
-            
+
         logger.info("Using model for %s with R2=%.3f", request.ticker, r2_score)
-        
+
         # Generate predictions
         pred_df = model_service.predict_future(df, features, model, horizon_days=request.horizon_days)
-        
+
         # Generate trading plan
         trade_plan_data = signal_service.generate_trade_plan(pred_df)
-        
+
         # Format response
         predictions = [
             PredictionPoint(
@@ -76,14 +76,14 @@ async def predict_stock(
             )
             for idx, row in pred_df.iterrows()
         ]
-        
+
         trade_plan = TradePlan(
             buy_date=trade_plan_data["buy_date"],
             sell_date=trade_plan_data["sell_date"],
             confidence=trade_plan_data["confidence"],
             rationale=trade_plan_data["rationale"]
         )
-        
+
         logger.info("Successfully generated %d predictions for %s", len(predictions), request.ticker)
         return PredictionResponse(
             ticker=request.ticker,
@@ -91,10 +91,10 @@ async def predict_stock(
             trade_plan=trade_plan,
             predictions=predictions
         )
-        
+
     except Exception as e:
         logger.error("Prediction failed for %s: %s", request.ticker, e)
         raise HTTPException(
-            status_code=500, 
+            status_code=500,
             detail=f"Prediction failed: {str(e)}"
         ) from e

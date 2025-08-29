@@ -44,24 +44,24 @@ class AsyncFileCache:
     async def get(self, cache_key: str, max_age_seconds: int = 3600) -> Any:
         """Get cached value if it exists and is fresh."""
         cache_path = self._cache_path(cache_key)
-        
+
         try:
             if not os.path.exists(cache_path):
                 return None
-                
+
             stat = os.stat(cache_path)
             age = time.time() - stat.st_mtime
-            
+
             if age > max_age_seconds:
                 logger.debug("Cache expired for %s (age: %.1fs)", cache_key, age)
                 return None
-                
+
             # Use pandas for DataFrame objects, pickle for others
             if cache_path.endswith('.parquet'):
                 return pd.read_parquet(cache_path)
             else:
                 return pd.read_pickle(cache_path)
-                
+
         except Exception as e:
             logger.warning("Failed to load from cache %s: %s", cache_key, e)
             return None
@@ -77,13 +77,13 @@ class AsyncFileCache:
                 # Use pickle for other objects
                 cache_path = self._cache_path(cache_key, ".pkl")
                 value.to_pickle(cache_path)
-                
+
             logger.debug("Cached data to %s", cache_key)
         except Exception as e:
             logger.warning("Failed to cache %s: %s", cache_key, e)
 
     def cache_async(
-        self, 
+        self,
         max_age_seconds: int = 3600,
         key_func: Callable[..., str] | None = None
     ) -> Callable[[F], F]:
@@ -96,20 +96,20 @@ class AsyncFileCache:
                     cache_key = key_func(*args, **kwargs)
                 else:
                     cache_key = self._cache_key(func.__name__, args, kwargs)
-                
+
                 # Try to get from cache
                 cached_result = await self.get(cache_key, max_age_seconds)
                 if cached_result is not None:
                     logger.debug("Cache hit for %s", func.__name__)
                     return cached_result
-                
+
                 # Execute function
                 logger.debug("Cache miss for %s, executing function", func.__name__)
                 result = await func(*args, **kwargs)
-                
+
                 # Cache result
                 await self.set(cache_key, result)
-                
+
                 return result
             return wrapper
         return decorator

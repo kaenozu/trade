@@ -68,14 +68,14 @@ def _model_path(ticker: str) -> str:
 
 def train_or_load_model(ticker: str, feat: pd.DataFrame) -> tuple[HistGradientBoostingRegressor, ModelMeta]:
     """Train a new model or load an existing one for the ticker.
-    
+
     Args:
         ticker: Stock ticker symbol
         feat: Feature DataFrame with target column
-        
+
     Returns:
         Tuple of (model, metadata)
-        
+
     Raises:
         ModelError: If model training or loading fails
     """
