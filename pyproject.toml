@@ -13,7 +13,10 @@ select = [
     "B",  # flake8-bugbear
     "UP", # pyupgrade
 ]
-ignore = [`n    "E501", # line length handled by formatter`n    "B008", # allow FastAPI Depends in params`n]
+ignore = [
+    \"E501\", # line length handled by formatter
+    \"B008\", # allow FastAPI Depends in params
+]
 
 [tool.ruff.format]
 quote-style = "preserve"
