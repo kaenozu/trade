@@ -14,10 +14,13 @@ except Exception:  # pragma: no cover - optional dependency in tests
     yf = None
 
 
-# Allow overriding cache directory via env; default to CWD/cache
-CACHE_DIR = os.getenv("CACHE_DIR") or os.path.join(os.getcwd(), "cache")
+from ..core.config import settings
+from ..core.exceptions import DataError
+
+# Configuration from settings
+CACHE_DIR = settings.cache_directory
 os.makedirs(CACHE_DIR, exist_ok=True)
-ALLOW_SYNTHETIC = os.getenv("ALLOW_SYNTHETIC_DATA", "0") == "1"
+ALLOW_SYNTHETIC = settings.allow_synthetic_data
 
 
 def _cache_path(ticker: str, period_days: int) -> str:
@@ -49,10 +52,11 @@ _TICKER_RE = re.compile(r"^[A-Za-z0-9._-]{1,15}$")
 
 
 def _validate_ticker(ticker: str) -> str:
+    """Validate ticker symbol format."""
     if not ticker or len(ticker) < 1:
-        raise ValueError("Invalid ticker")
+        raise DataError("Invalid ticker: must be non-empty string")
     if not _TICKER_RE.match(ticker):
-        raise ValueError("Invalid ticker format")
+        raise DataError(f"Invalid ticker format: {ticker}")
     return ticker
 
 

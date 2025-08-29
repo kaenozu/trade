@@ -11,7 +11,10 @@ from sklearn.experimental import enable_hist_gradient_boosting  # noqa: F401
 from sklearn.metrics import r2_score
 from sklearn.model_selection import TimeSeriesSplit
 
-MODEL_DIR = os.path.join(os.getcwd(), "models")
+from ..core.config import settings
+from ..core.exceptions import ModelError
+
+MODEL_DIR = settings.model_directory
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 
@@ -46,8 +49,23 @@ def _model_path(ticker: str) -> str:
     return os.path.join(MODEL_DIR, f"{base}.joblib")
 
 
-def train_or_load_model(ticker: str, feat: pd.DataFrame):
-    X, y = _split_Xy(feat)
+def train_or_load_model(ticker: str, feat: pd.DataFrame) -> tuple[HistGradientBoostingRegressor, ModelMeta]:
+    """Train a new model or load an existing one for the ticker.
+    
+    Args:
+        ticker: Stock ticker symbol
+        feat: Feature DataFrame with target column
+        
+    Returns:
+        Tuple of (model, metadata)
+        
+    Raises:
+        ModelError: If model training or loading fails
+    """
+    try:
+        X, y = _split_Xy(feat)
+    except KeyError as e:
+        raise ModelError(f"Missing required column in features: {e}") from e
 
     path = _model_path(ticker)
     if os.path.exists(path):
