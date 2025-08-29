@@ -25,7 +25,12 @@ ALLOW_SYNTHETIC = settings.allow_synthetic_data
 
 def _cache_path(ticker: str, period_days: int) -> str:
     safe = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    p = os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    real = os.path.realpath(p)
+    root = os.path.realpath(CACHE_DIR)
+    if not real.startswith(root + os.sep):
+        raise ValueError("Unsafe cache path")
+    return real
 
 
 def _make_session() -> requests.Session:
@@ -120,7 +125,8 @@ def fetch_ohlcv(
     cache_file = _cache_path(ticker, period_days)
     now = time.time()
     if os.path.exists(cache_file) and (now - os.path.getmtime(cache_file) <= ttl_seconds):
-        try:
+        ticker = _validate_ticker(ticker)
+    try:
             df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
         except Exception:
             df = pd.DataFrame()
