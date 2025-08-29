@@ -1,11 +1,9 @@
-import asyncio
-import types
-
 import pytest
 from httpx import AsyncClient
 
 from app.main import app
 from app.services import data as data_service
+
 from .utils import make_synthetic_ohlcv
 
 
@@ -17,7 +15,9 @@ async def test_predict_endpoint_monkeypatched(monkeypatch):
 
         monkeypatch.setattr(data_service, "fetch_ohlcv", fake_fetch)
         async with AsyncClient(app=app, base_url="http://test") as ac:
-            resp = await ac.post("/predict", json={"ticker": "TEST.T", "horizon_days": 7, "lookback_days": 400})
+            resp = await ac.post(
+                "/predict", json={"ticker": "TEST.T", "horizon_days": 7, "lookback_days": 400}
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["ticker"] == "TEST.T"
@@ -27,4 +27,3 @@ async def test_predict_endpoint_monkeypatched(monkeypatch):
             assert set(tp.keys()) == {"buy_date", "sell_date", "confidence", "rationale"}
 
     await _run()
-

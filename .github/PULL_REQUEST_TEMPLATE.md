@@ -14,4 +14,3 @@
 - [ ] No secrets or tokens committed
 - [ ] If behavior changes, added/updated tests
 - [ ] If dependencies changed, ran `pip-audit`
-

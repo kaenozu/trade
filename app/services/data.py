@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 import datetime as dt
-from typing import Optional
 import os
+import re
 import time
 
 import pandas as pd
 import requests
-import json
-import re
 
 try:
     import yfinance as yf
@@ -16,26 +14,37 @@ except Exception:  # pragma: no cover - optional dependency in tests
     yf = None
 
 
-CACHE_DIR = os.path.join(os.getcwd(), "cache")
+from ..core.config import settings
+from ..core.exceptions import DataError
+
+# Configuration from settings
+CACHE_DIR = settings.cache_directory
 os.makedirs(CACHE_DIR, exist_ok=True)
-ALLOW_SYNTHETIC = os.getenv("ALLOW_SYNTHETIC_DATA", "0") == "1"
+ALLOW_SYNTHETIC = settings.allow_synthetic_data
 
 
 def _cache_path(ticker: str, period_days: int) -> str:
     safe = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    p = os.path.join(CACHE_DIR, f"yf_{safe}_{period_days}d.csv")
+    real = os.path.realpath(p)
+    root = os.path.realpath(CACHE_DIR)
+    if not real.startswith(root + os.sep):
+        raise ValueError("Unsafe cache path")
+    return real
 
 
 def _make_session() -> requests.Session:
     s = requests.Session()
     # Friendly UA to avoid some blocks
-    s.headers.update({
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/127.0 Safari/537.36"
-        )
-    })
+    s.headers.update(
+        {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/127.0 Safari/537.36"
+            )
+        }
+    )
     # Inherit proxies from environment if set
     for k in ("http", "https"):
         env = os.getenv(f"{k.upper()}_PROXY")
@@ -48,10 +57,11 @@ _TICKER_RE = re.compile(r"^[A-Za-z0-9._-]{1,15}$")
 
 
 def _validate_ticker(ticker: str) -> str:
+    """Validate ticker symbol format."""
     if not ticker or len(ticker) < 1:
-        raise ValueError("Invalid ticker")
+        raise DataError("Invalid ticker: must be non-empty string")
     if not _TICKER_RE.match(ticker):
-        raise ValueError("Invalid ticker format")
+        raise DataError(f"Invalid ticker format: {ticker}")
     return ticker
 
 
@@ -100,7 +110,9 @@ def fetch_last_close_direct(ticker: str) -> tuple[float, str]:
     raise ValueError(f"Failed to fetch quote: {last_err or 'unknown error'}")
 
 
-def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = None, ttl_seconds: int = 8*3600) -> pd.DataFrame:
+def fetch_ohlcv(
+    ticker: str, period_days: int = 400, end: dt.date | None = None, ttl_seconds: int = 8 * 3600
+) -> pd.DataFrame:
     ticker = _validate_ticker(ticker)
     if period_days < 60:
         raise ValueError("period_days must be >= 60")
@@ -113,6 +125,7 @@ def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = No
     cache_file = _cache_path(ticker, period_days)
     now = time.time()
     if os.path.exists(cache_file) and (now - os.path.getmtime(cache_file) <= ttl_seconds):
+        ticker = _validate_ticker(ticker)
         try:
             df = pd.read_csv(cache_file, index_col=0, parse_dates=True)
         except Exception:
@@ -120,19 +133,29 @@ def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = No
     else:
         df = pd.DataFrame()
 
+
     def _attempt_fetch() -> pd.DataFrame:
         session = _make_session()
         # 1) Standard download
         for _ in range(2):
             try:
-                d1 = yf.download(ticker, period=period, interval="1d", auto_adjust=False, progress=False, session=session)
+                d1 = yf.download(
+                    ticker,
+                    period=period,
+                    interval="1d",
+                    auto_adjust=False,
+                    progress=False,
+                    session=session,
+                )
                 if d1 is not None and not d1.empty:
                     return d1
             except Exception:
                 pass
         # 2) Ticker().history
         try:
-            d2 = yf.Ticker(ticker, session=session).history(period=period, interval="1d", auto_adjust=False)
+            d2 = yf.Ticker(ticker, session=session).history(
+                period=period, interval="1d", auto_adjust=False
+            )
             if d2 is not None and not d2.empty:
                 return d2
         except Exception:
@@ -160,13 +183,16 @@ def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = No
         df = _attempt_fetch()
         if df is None or df.empty:
             if not ALLOW_SYNTHETIC:
-                raise ValueError("No data returned for ticker (network/region/firewall issue or invalid symbol)")
+                raise ValueError(
+                    "No data returned for ticker (network/region/firewall issue or invalid symbol)"
+                )
             else:
                 # As a last resort, synthesize a price series for demo usability
                 # Deterministic by ticker for consistency across runs
                 def _synthetic_ohlcv(days: int) -> pd.DataFrame:
                     import numpy as _np
                     import pandas as _pd
+
                     rng = _np.random.default_rng(abs(hash(ticker)) % (2**32))
                     idx = _pd.bdate_range(end=_pd.Timestamp.today().normalize(), periods=days)
                     # Random walk for close
@@ -176,13 +202,16 @@ def fetch_ohlcv(ticker: str, period_days: int = 400, end: Optional[dt.date] = No
                     low = close * (1.0 - _np.clip(rng.normal(0.003, 0.004, len(idx)), 0, 0.05))
                     open_ = (high + low) / 2.0
                     vol = rng.integers(1_000_000, 5_000_000, len(idx)).astype(float)
-                    out = _pd.DataFrame({
-                        "Open": open_,
-                        "High": high,
-                        "Low": low,
-                        "Close": close,
-                        "Volume": vol,
-                    }, index=idx)
+                    out = _pd.DataFrame(
+                        {
+                            "Open": open_,
+                            "High": high,
+                            "Low": low,
+                            "Close": close,
+                            "Volume": vol,
+                        },
+                        index=idx,
+                    )
                     return out
 
                 df = _synthetic_ohlcv(max(250, period_days))

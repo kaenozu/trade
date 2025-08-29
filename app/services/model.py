@@ -1,20 +1,21 @@
 from __future__ import annotations
 
 import os
-import json
+import re
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.experimental import enable_hist_gradient_boosting  # noqa: F401
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.experimental import enable_hist_gradient_boosting  # noqa: F401
 from sklearn.metrics import r2_score
+from sklearn.model_selection import TimeSeriesSplit
 
+from ..core.config import settings
+from ..core.exceptions import ModelError
 
-MODEL_DIR = os.path.join(os.getcwd(), "models")
+MODEL_DIR = settings.model_directory
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 
@@ -25,13 +26,15 @@ class ModelMeta:
     train_rows: int
 
 
-def _split_Xy(feat: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+def _split_Xy(feat: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     X = feat.drop(columns=["target"])  # type: ignore
     y = feat["target"]  # type: ignore
     return X, y
 
 
-def _evaluate_cv(model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Series, splits: int = 5) -> float:
+def _evaluate_cv(
+    model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Series, splits: int = 5
+) -> float:
     tscv = TimeSeriesSplit(n_splits=min(splits, max(2, len(X) // 60)))
     scores = []
     for train_idx, test_idx in tscv.split(X):
@@ -42,13 +45,43 @@ def _evaluate_cv(model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Se
     return float(np.nanmean(scores))
 
 
+_TICKER_RE = re.compile(r"^[-A-Za-z0-9._]{1,15}$")
+
+
+def _validate_ticker(ticker: str) -> str:
+    if not ticker or not _TICKER_RE.match(ticker):
+        raise ModelError("Invalid ticker format")
+    return ticker
+
+
 def _model_path(ticker: str) -> str:
+    _validate_ticker(ticker)
     base = ticker.replace("/", "_").replace("\\", "_")
-    return os.path.join(MODEL_DIR, f"{base}.joblib")
+    path = os.path.join(MODEL_DIR, f"{base}.joblib")
+    real = os.path.realpath(path)
+    root = os.path.realpath(MODEL_DIR)
+    if not real.startswith(root + os.sep):
+        raise ModelError("Unsafe model path")
+    return real
 
 
-def train_or_load_model(ticker: str, feat: pd.DataFrame):
-    X, y = _split_Xy(feat)
+def train_or_load_model(ticker: str, feat: pd.DataFrame) -> tuple[HistGradientBoostingRegressor, ModelMeta]:
+    """Train a new model or load an existing one for the ticker.
+
+    Args:
+        ticker: Stock ticker symbol
+        feat: Feature DataFrame with target column
+
+    Returns:
+        Tuple of (model, metadata)
+
+    Raises:
+        ModelError: If model training or loading fails
+    """
+    try:
+        X, y = _split_Xy(feat)
+    except KeyError as e:
+        raise ModelError(f"Missing required column in features: {e}") from e
 
     path = _model_path(ticker)
     if os.path.exists(path):
@@ -61,7 +94,9 @@ def train_or_load_model(ticker: str, feat: pd.DataFrame):
         except Exception:
             pass
 
-    model = HistGradientBoostingRegressor(max_depth=6, learning_rate=0.05, max_iter=600, l2_regularization=0.0)
+    model = HistGradientBoostingRegressor(
+        max_depth=6, learning_rate=0.05, max_iter=600, l2_regularization=0.0
+    )
     r2 = _evaluate_cv(model, X, y)
     model.fit(X, y)
 
@@ -70,7 +105,12 @@ def train_or_load_model(ticker: str, feat: pd.DataFrame):
     return model, meta
 
 
-def predict_future(df_price: pd.DataFrame, feat: pd.DataFrame, model: HistGradientBoostingRegressor, horizon_days: int = 10) -> pd.DataFrame:
+def predict_future(
+    df_price: pd.DataFrame,
+    feat: pd.DataFrame,
+    model: HistGradientBoostingRegressor,
+    horizon_days: int = 10,
+) -> pd.DataFrame:
     # Start from last available day
     last_date = df_price.index.max()
     X_last = feat.drop(columns=["target"]).iloc[-1]
@@ -102,11 +142,12 @@ def predict_future(df_price: pd.DataFrame, feat: pd.DataFrame, model: HistGradie
         feat_new = build_feature_frame(synthetic)
         X_last = feat_new.drop(columns=["target"]).iloc[-1]
 
-        rows.append({
-            "date": new_date.normalize(),
-            "expected_return": pred_ret,
-            "expected_price": current_close,
-        })
+        rows.append(
+            {
+                "date": new_date.normalize(),
+                "expected_return": pred_ret,
+                "expected_price": current_close,
+            }
+        )
 
     return pd.DataFrame(rows).set_index("date")
-

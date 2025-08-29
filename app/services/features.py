@@ -30,7 +30,7 @@ def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
     out["ret_1"] = close.pct_change()
     out["ret_5"] = close.pct_change(5)
     out["ret_10"] = close.pct_change(10)
-    out["logret_1"] = np.log1p(out["ret_1"]) 
+    out["logret_1"] = np.log1p(out["ret_1"])
 
     # Volatility
     out["vol_5"] = out["logret_1"].rolling(5).std()
@@ -60,4 +60,3 @@ def build_feature_frame(df: pd.DataFrame) -> pd.DataFrame:
 
     out = out.replace([np.inf, -np.inf], np.nan).dropna()
     return out
-

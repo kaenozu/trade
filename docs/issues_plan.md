@@ -99,4 +99,3 @@
   - 内容: `pytest-benchmark`、`locust`等で応答遅延/スループット測定。
   - 受入条件: P95<300ms（キャッシュ時）を達成。
   - ラベル: performance
-
