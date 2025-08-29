@@ -1,0 +1,29 @@
+# Virtual environments
+.venv/
+venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+
+# Logs and runtime outputs
+*.log
+uvicorn.*.log
+tmp_openapi_*.json
+logs/
+cache/
+
+# Models and large artifacts
+models/*.joblib
+
+# Build
+dist/
+build/
+*.egg-info/
