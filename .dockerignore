@@ -1,0 +1,17 @@
+__pycache__
+.pytest_cache
+.venv
+env
+venv
+*.pyc
+*.pyo
+*.pyd
+*.log
+models
+docs
+tests
+.git
+.gitignore
+uvicorn.out.log
+uvicorn.err.log
+
