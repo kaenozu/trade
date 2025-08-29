@@ -219,7 +219,7 @@ def quote(ticker: str):
         try:
             df = data_service.fetch_ohlcv(ticker, period_days=90)
         except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
+            raise HTTPException(status_code=400, detail=str(e)) from e
         if len(df) == 0:
             raise HTTPException(status_code=400, detail="No data")
         last_idx: pd.Timestamp = df.index.max()  # type: ignore
