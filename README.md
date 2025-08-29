@@ -13,8 +13,16 @@ pip install -r requirements.txt
 
 ## 起動
 
+- 直接起動:
+
 ```
 uvicorn app.main:app --reload --port 8000
+```
+
+- Windows のスクリプトで起動（ホットリロード有効）:
+
+```
+powershell -ExecutionPolicy Bypass -File scripts/dev.ps1 -Port 8000
 ```
 
 ブラウザで `http://127.0.0.1:8000/` を開き、銘柄（例: `7203.T`）を入力して実行します。
