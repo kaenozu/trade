@@ -15,12 +15,14 @@ def make_synthetic_ohlcv(n: int = 500, seed: int = 42) -> pd.DataFrame:
     open_ = close.shift(1).fillna(close.iloc[0])
     vol = rng.integers(1_000_000, 5_000_000, size=n)
     idx = pd.bdate_range("2020-01-01", periods=n, freq="B")
-    df = pd.DataFrame({
-        "Open": open_.values,
-        "High": high.values,
-        "Low": low.values,
-        "Close": close.values,
-        "Volume": vol.astype(float),
-    }, index=idx)
+    df = pd.DataFrame(
+        {
+            "Open": open_.values,
+            "High": high.values,
+            "Low": low.values,
+            "Close": close.values,
+            "Volume": vol.astype(float),
+        },
+        index=idx,
+    )
     return df
-

@@ -1,4 +1,5 @@
 from app.services.features import build_feature_frame
+
 from .utils import make_synthetic_ohlcv
 
 
@@ -12,4 +13,3 @@ def test_build_feature_frame_shapes():
     assert feat.isna().sum().sum() == 0
     # Enough rows left after drops
     assert feat.shape[0] > 200
-

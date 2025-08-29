@@ -1,9 +1,9 @@
+import os
+
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
-from typing import List, Optional
-import pandas as pd
-import os
 
 # Optional observability (non-fatal if missing)
 try:
@@ -20,7 +20,7 @@ except Exception:  # pragma: no cover
 
 from .services import data as data_service
 from .services.features import build_feature_frame
-from .services.model import train_or_load_model, predict_future
+from .services.model import predict_future, train_or_load_model
 from .services.signals import generate_trade_plan
 from .services.tickers import list_jp_tickers
 
@@ -38,7 +38,9 @@ if _sentry_dsn and sentry_sdk and FastApiIntegration:  # pragma: no cover
     )
 
 # Prometheus metrics (enabled by default; disable via METRICS_ENABLED=0)
-if os.environ.get("METRICS_ENABLED", "1") not in ("0", "false", "False") and Instrumentator:  # pragma: no cover
+if (
+    os.environ.get("METRICS_ENABLED", "1") not in ("0", "false", "False") and Instrumentator
+):  # pragma: no cover
     try:
         Instrumentator().instrument(app).expose(app, include_in_schema=False)
     except Exception:
@@ -74,8 +76,8 @@ class PredictionPoint(BaseModel):
 
 
 class TradePlan(BaseModel):
-    buy_date: Optional[str]
-    sell_date: Optional[str]
+    buy_date: str | None
+    sell_date: str | None
     confidence: float
     rationale: str
 
@@ -84,7 +86,7 @@ class PredictionResponse(BaseModel):
     ticker: str
     horizon_days: int
     trade_plan: TradePlan
-    predictions: List[PredictionPoint]
+    predictions: list[PredictionPoint]
 
 
 class Quote(BaseModel):
@@ -95,8 +97,7 @@ class Quote(BaseModel):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
-    return (
-        """
+    return """
         <!doctype html>
         <html>
         <head>
@@ -198,7 +199,6 @@ def index():
         </body>
         </html>
         """
-    )
 
 
 @app.post("/predict", response_model=PredictionResponse)
@@ -206,7 +206,7 @@ def predict(req: PredictionRequest):
     try:
         df = data_service.fetch_ohlcv(req.ticker, period_days=req.lookback_days + 5)
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
     if len(df) < 200:
         raise HTTPException(status_code=400, detail="Not enough data to train")
@@ -246,8 +246,10 @@ def version():
         "version": app.version,
         "git_sha": os.environ.get("GIT_SHA"),
     }
+
+
 @app.get("/tickers")
-def tickers(q: Optional[str] = None):
+def tickers(q: str | None = None):
     return list_jp_tickers(query=q)
 
 
@@ -265,9 +267,9 @@ def quote(ticker: str):
         try:
             df = data_service.fetch_ohlcv(ticker, period_days=90)
         except ValueError as e:
-            raise HTTPException(status_code=400, detail=str(e))
+            raise HTTPException(status_code=400, detail=str(e)) from e
         if len(df) == 0:
-            raise HTTPException(status_code=400, detail="No data")
+            raise HTTPException(status_code=400, detail="No data") from None
         last_idx = df.index.max()
         last_close = float(df.loc[last_idx, "Close"])
         return Quote(ticker=ticker, price=last_close, asof=str(pd.to_datetime(last_idx).date()))

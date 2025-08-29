@@ -1,18 +1,15 @@
 from __future__ import annotations
 
 import os
-import json
 from dataclasses import dataclass
-from typing import Dict, Tuple
 
 import joblib
 import numpy as np
 import pandas as pd
-from sklearn.experimental import enable_hist_gradient_boosting  # noqa: F401
 from sklearn.ensemble import HistGradientBoostingRegressor
-from sklearn.model_selection import TimeSeriesSplit
+from sklearn.experimental import enable_hist_gradient_boosting  # noqa: F401
 from sklearn.metrics import r2_score
-
+from sklearn.model_selection import TimeSeriesSplit
 
 MODEL_DIR = os.path.join(os.getcwd(), "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
@@ -25,13 +22,15 @@ class ModelMeta:
     train_rows: int
 
 
-def _split_Xy(feat: pd.DataFrame) -> Tuple[pd.DataFrame, pd.Series]:
+def _split_Xy(feat: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series]:
     X = feat.drop(columns=["target"])  # type: ignore
     y = feat["target"]  # type: ignore
     return X, y
 
 
-def _evaluate_cv(model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Series, splits: int = 5) -> float:
+def _evaluate_cv(
+    model: HistGradientBoostingRegressor, X: pd.DataFrame, y: pd.Series, splits: int = 5
+) -> float:
     tscv = TimeSeriesSplit(n_splits=min(splits, max(2, len(X) // 60)))
     scores = []
     for train_idx, test_idx in tscv.split(X):
@@ -61,7 +60,9 @@ def train_or_load_model(ticker: str, feat: pd.DataFrame):
         except Exception:
             pass
 
-    model = HistGradientBoostingRegressor(max_depth=6, learning_rate=0.05, max_iter=600, l2_regularization=0.0)
+    model = HistGradientBoostingRegressor(
+        max_depth=6, learning_rate=0.05, max_iter=600, l2_regularization=0.0
+    )
     r2 = _evaluate_cv(model, X, y)
     model.fit(X, y)
 
@@ -70,7 +71,12 @@ def train_or_load_model(ticker: str, feat: pd.DataFrame):
     return model, meta
 
 
-def predict_future(df_price: pd.DataFrame, feat: pd.DataFrame, model: HistGradientBoostingRegressor, horizon_days: int = 10) -> pd.DataFrame:
+def predict_future(
+    df_price: pd.DataFrame,
+    feat: pd.DataFrame,
+    model: HistGradientBoostingRegressor,
+    horizon_days: int = 10,
+) -> pd.DataFrame:
     # Start from last available day
     last_date = df_price.index.max()
     X_last = feat.drop(columns=["target"]).iloc[-1]
@@ -102,11 +108,12 @@ def predict_future(df_price: pd.DataFrame, feat: pd.DataFrame, model: HistGradie
         feat_new = build_feature_frame(synthetic)
         X_last = feat_new.drop(columns=["target"]).iloc[-1]
 
-        rows.append({
-            "date": new_date.normalize(),
-            "expected_return": pred_ret,
-            "expected_price": current_close,
-        })
+        rows.append(
+            {
+                "date": new_date.normalize(),
+                "expected_return": pred_ret,
+                "expected_price": current_close,
+            }
+        )
 
     return pd.DataFrame(rows).set_index("date")
-
